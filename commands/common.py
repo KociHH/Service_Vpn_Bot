@@ -22,36 +22,11 @@ from keyboards.reply_keyboard.admin_panel import admin_kb, rassilka_kb, yes_no_k
 router = Router()
 file_id = 'CAACAgIAAxkBAAENPehnSaTAff8Bp2seJXVgdaalTXS-lwACnA0AArrNuUrJQaN_QYSCkDYE'
 
-
-# @router.message(Command('Профиль', prefix='/'))
-# async def cmd_start(message: Message):
-#     user_id = message.from_user.id
-#     username = message.from_user.username
-#     first_name = message.from_user.first_name
-#     last_name = message.from_user.last_name
-#     state =  message.from_user.id in (settings.Admins())
-#     def admin():
-#         if state:
-#             return f"Статус: {markdown.bold('admin')}"
-#         else:
-#             return f"Статус: {markdown.bold('user')}"
-#     if last_name is not None:
-#         last_name = last_name.title()
-#     else:
-#         last_name = ''
-#
-#     print(f"Получена команда /Профиль от пользователя: {first_name} {last_name} (@{username}) с ID: {user_id}, {admin()}")
-#
-#     await message.answer(
-#         f"Ваш ID: {user_id}\nВаше имя: {first_name}\nВаша фамилия: {last_name}\nВаш юзернейм: @{username}\n{admin()}",
-#         parse_mode=ParseMode.MARKDOWN
-#     )
-
-
+# true admin if not admin false
 def is_admin(message: Message) -> bool:
     return message.from_user.id in settings.Admins()
 
-
+# main state if admin so admin panel
 @router.message(Command('admin', prefix='/'))
 async def admin(message: Message, state: FSMContext):
     await state.set_state(Admin.admin)
@@ -61,7 +36,7 @@ async def admin(message: Message, state: FSMContext):
         reply_markup=rassilka_kb()
         )
 
-
+# state handler
 @router.message(F.text == '📢 Рассылка')
 async def rassilka(message: Message, state: FSMContext, db_session: AsyncSession):
     await state.set_state(Admin.rassilka)
@@ -71,7 +46,7 @@ async def rassilka(message: Message, state: FSMContext, db_session: AsyncSession
         reply_markup=ReplyKeyboardRemove()
     )
 
-
+# state handler
 @router.message(StateFilter(Admin.rassilka))
 async def edit_rassilka(message: Message, state: FSMContext, db_session: AsyncSession):
     await state.set_state(Admin.chek_rassilka)
@@ -90,6 +65,7 @@ async def edit_rassilka(message: Message, state: FSMContext, db_session: AsyncSe
 
 samples = '________________________________'
 
+# state handler
 @router.message(StateFilter(Admin.chek_rassilka), F.text == 'Да')
 async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSession):
     data = await state.get_data()
@@ -149,7 +125,7 @@ async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSe
     )
     await state.clear()
 
-
+# state handler
 @router.message(StateFilter(Admin.chek_rassilka), F.text == '📝 Изменить текст')
 async def edit_text_rassilka(message: Message, state: FSMContext, db_session: AsyncSession):
     data = await state.get_data()
@@ -182,9 +158,7 @@ async def edit_text_rassilka(message: Message, state: FSMContext, db_session: As
     await state.set_state(Admin.rassilka)
 
 
-
-
-
+# the handler resets whether there is a state
 @router.message(Command(commands=['start', 'help', 'admin']), StateFilter("*"))
 async def handle_commands_in_state(message: Message, state: FSMContext):
 
@@ -239,7 +213,7 @@ async def handle_commands_in_state(message: Message, state: FSMContext):
         )
 
 
-
+# handler
 @router.message(Command('start', prefix='/'))
 async def start_handler(message: Message):
 
@@ -256,7 +230,7 @@ async def start_handler(message: Message):
 
     await message.answer(text, reply_markup=Main_menu())
 
-
+# handler
 @router.message(Command('help', prefix='/'))
 async def help(message: Message):
     await message.answer(
@@ -270,6 +244,7 @@ config: Config = load_path()
 bot = Bot(config.tg_bot.token)
 
 
+# saves the sent photo
 @router.message(F.photo)
 async def handle_photo(message: types.Message):
 
@@ -286,18 +261,3 @@ async def handle_photo(message: types.Message):
 
     await bot.download_file(file_info.file_path, destination=file_path)
     print(f"Фотография сохранена как {file_name}!")
-
-
-# @router.message(F.text == 'secret', F.from_user.id.in_(settings.Admins()))
-# async def secret(message: Message):
-#     await message.answer('Тест')
-
-
-
-# @router.message()
-# async def echo(message: Message):
-#     await message.answer(markdown.text(
-#         '‼️Неверный запрос  ‼️\n\n'
-#         'Нажмите, сюда 👉 /start\n'
-#         'Или выберите команду из списка меню\n\n'
-#         'Если хотите обратиться в поддержку, нажмите сюда 👉 /help', sep='\n'))
