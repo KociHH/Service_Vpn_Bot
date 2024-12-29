@@ -3,7 +3,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 import settings
 
-
+# it is not used
 def admin_kb() -> ReplyKeyboardMarkup:
     admin_ids = settings.Admins()
     print(f"Admin_id: {admin_ids}")
@@ -14,18 +14,14 @@ def admin_kb() -> ReplyKeyboardMarkup:
             builder.button(text='💎 Админ панель')
             return builder.as_markup(resize_keyboard=True)
 
-
+# create r.button
 def rassilka_kb() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(text='📢 Рассылка')
 
     return builder.as_markup(resize_keyboard=True)
 
-
-
-
-
-
+# create r.button
 def yes_no_kb() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(text='Да')
