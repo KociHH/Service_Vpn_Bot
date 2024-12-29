@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from email_validator import validate_email, EmailNotValidError
 
-
+# function checking email domen 
 async def check_email(email: str, message: Message | None = None):
     try:
         v = validate_email(email)
@@ -17,7 +17,7 @@ async def check_email(email: str, message: Message | None = None):
             await message.answer(f"❌ Этот email не валидный, попробуйте еще раз.")
             raise e
 
-
+# Saved data for callback and for message
 async def process_callback_data(call_message: Union[CallbackQuery, Message], state: FSMContext):
     if isinstance(call_message.data, str):
         print(call_message.data)
