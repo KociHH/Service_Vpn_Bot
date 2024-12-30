@@ -1,1 +1,4 @@
 .env
+.idea
+test.py
+requirements.txt
