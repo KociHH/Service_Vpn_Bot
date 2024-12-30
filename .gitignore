@@ -1,5 +1,8 @@
 .env
-.idea
+.idea/
 test.py
 requirements.txt
 alembic.ini
+venv/
+__pycache__/
+*.pyc
