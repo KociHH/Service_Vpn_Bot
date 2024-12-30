@@ -35,7 +35,7 @@ router = Router()
 #     else:
 #         return None
 
-
+# creating variables for text
 text_answer_one = markdown.text(
     f'🗝VPN на {info.month} месяц\n\n'
     f'📄Цена: {info.price} ₽\n\n'
