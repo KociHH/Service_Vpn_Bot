@@ -4,28 +4,74 @@ import requests
 from aiogram import Dispatcher, Router, Bot
 import logging
 from aiogram.enums import ParseMode
+from aiogram.loggers import webhook
 from aiogram.types import Update
+from aiohttp import web
+from environs import Env
 
+import settings
 from bd_api.middle import DatabaseMiddleware, async_session
 from settings import Config, load_path
 from aiogram.client.bot import DefaultBotProperties
 from commands import router as commands_router
 
-config: Config = load_path()
-
 router = Router(name=__name__)
 
+
+webhook_fn = settings.WEBHOOK()
+config: Config = load_path()
+
+dp = Dispatcher()
+dp.include_routers(commands_router)
+dp.update.middleware(DatabaseMiddleware(async_session))
+
+logging.basicConfig(level=logging.INFO)
+bot = Bot(token=config.tg_bot.token,
+          default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+print(webhook_fn['WEBHOOK_URL'], webhook_fn['port'], webhook_fn['host'])
+
+# Установка вебхука
+async def webhook_setup(bot: Bot):
+    webhook_url = webhook_fn['WEBHOOK_URL'] + '/webhook'
+    await bot.set_webhook(webhook_url)
+
+
+async def handle_webhook(request):
+
+    # получение данных от телеграм
+    data = await request.json()
+    update = Update(**data)
+    print("Update:", data)
+
+    # Передача обновления в диспетчер
+    await dp.feed_update(bot, update)
+    return web.Response(text='OK')
+
+
+# основная функция
 async def main():
-    dp = Dispatcher()
+    await webhook_setup(bot)
 
-    dp.include_routers(commands_router)
-    dp.update.middleware(DatabaseMiddleware(async_session))
+    # Создание aiohttp-приложения
+    app = web.Application()
+    app.router.add_post('/webhook', handle_webhook)
+
+    # запуск сервера
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host=webhook_fn['host'], port=webhook_fn['port'])
+    await site.start()
+
+    print(f"Запущен сервер на {webhook_fn['port']}:{webhook_fn['host']}")
 
 
-    logging.basicConfig(level=logging.INFO)
-    bot = Bot(token=config.tg_bot.token,
-              default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    await dp.start_polling(bot)
+    # блокировка для работы сервера
+    try:
+        await asyncio.Event().wait()
+    except KeyboardInterrupt:
+        await runner.cleanup()
+
 
 
 if __name__ == '__main__':
