@@ -19,11 +19,11 @@ class client:
 
 
 class YookassaToken:
-    Api_id = '990319'
-    Api_key = 'live_Howy2o7x8lL1o7kEpqaWuOihNxKTmzZSkrLo4nsL0ps'
+    Api_id = 
+    Api_key = 
 
-    Api_id_test = '993051'
-    Api_key_test = 'test_Z5NnY5EXR4G9rBR1FkXwRIbHbxw1H3ajQ5AjGSIp2NY'
+    Api_id_test = 
+    Api_key_test = 
 
 
 @dataclass(frozen=True)
