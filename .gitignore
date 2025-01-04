@@ -6,3 +6,5 @@ venv/
 __pycache__/
 *.pyc
 img/
+test_file.py
+.env
