@@ -97,30 +97,3 @@ def SQlpg(path: Optional[str] = None) -> str:
     return postgres_url
 
 print(SQlpg())
-
-# @dataclass
-# class Admin_id:
-#     admin_id: frozenset[int]
-#
-#
-# @dataclass
-# class Admins:
-#     admins: Admin_id
-#
-#
-# admin_ids = Admin_id(admin_id=frozenset({5537454918, 1896661232, 1958773156}))
-# admins = Admins(admins=admin_ids)
-
-
-
-# class Settings(BaseSettings):
-#     model_config = SettingsConfigDict(
-#         case_sensitive=False,
-#     )
-#
-#     bot_token: str
-#     admin_id: frozenset[int] = frozenset({5537454918, 1896661232, 1958773156})
-#
-#
-#
-# settings = Settings()
