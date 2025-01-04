@@ -28,6 +28,12 @@ class YookassaToken:
     Api_id_test = env("API_ID_TEST")
     Api_key_test = env("API_KEY_TEST")
 
+# Имя: f1070382_termix
+# Пользователь: f1070382_termix
+# Пароль: 2551repP
+# Адрес хоста: localhost
+
+
 
 @dataclass(frozen=True)
 class TG_bot:
