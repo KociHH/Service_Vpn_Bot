@@ -19,11 +19,14 @@ class client:
 
 
 class YookassaToken:
-    Api_id = 
-    Api_key = 
+    env: Env = Env()
+    env.read_env()
 
-    Api_id_test = 
-    Api_key_test = 
+    Api_id = env("API_ID")
+    Api_key = env("API_KEY")
+
+    Api_id_test = env("API_ID_TEST")
+    Api_key_test = env("API_KEY_TEST")
 
 
 @dataclass(frozen=True)
@@ -66,9 +69,10 @@ def WEBHOOK(path: str | None = None):
     env.read_env(path)
 
     settings = {
-        'port': env('PORT'),
+        'port': env.int('PORT'),
         'host': env('HOST'),
-        'WEBHOOK_URL': env('WEBHOOK_URL')
+        'WEBHOOK_URL': env('WEBHOOK_URL'),
+        'WEBHOOK_PATH': env('WEBHOOK_PATH'),
     }
     return settings
 

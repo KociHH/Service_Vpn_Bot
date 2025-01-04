@@ -178,7 +178,7 @@ async def handle_commands_in_state(message: Message, state: FSMContext):
     elif message.text == '/help':
         result = 'Вы вернулись в поддержку 👇'
     elif message.text == '/admin':
-        result = 'Вы пиздатый 👇'
+        result = 'Вы вернулись в /admin 👇'
     else:
         result = 'Неизвестная команда'
 

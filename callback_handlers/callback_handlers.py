@@ -1,4 +1,6 @@
 import traceback
+from idlelib.undo import Command
+from imaplib import Commands
 from typing import Optional, Union
 
 from aiogram import F
@@ -242,8 +244,6 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
         await call_or_message.answer("Ошибка: не поддерживаемый формат данных.", show_alert=True)
         return
 
-    print(f"еще: {callback_dict}")
-
     if 'month' in callback_dict:
         callback_dict['action'] = Month(callback_dict['month'])
     else:
@@ -267,7 +267,6 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
         )
         return
 
-    print(f"Action: {action}")
     if action == Month.One_month:
         await handle_one_month(call_or_message)
     elif action == Month.Two_month:
@@ -280,7 +279,6 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
             await call_or_message.answer("Неизвестное действие.", show_alert=True)
         elif isinstance(call_or_message, Message):
             await call_or_message.answer("Неизвестное действие.")
-    print(f"Action executed: {action}")
 
 
 async def handle_one_month(call_or_message: Union[CallbackQuery, Message]):
@@ -335,6 +333,9 @@ async def handle_three_month(call_or_message: Union[CallbackQuery, Message]):
         )
     except Exception as e:
         print(f"Error editing message: {e}")
+
+
+
 
 
 @router.callback_query(

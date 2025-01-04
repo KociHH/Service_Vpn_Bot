@@ -15,6 +15,7 @@ postgres_url = SQlpg(path='.env')
 engine = create_async_engine(postgres_url, future=True, echo=False, poolclass=pool.NullPool)
 async_session = async_sessionmaker(engine, expire_on_commit=False,  class_=AsyncSession)
 
+
 # Сreating a midleware for asynchronous connection Potgres
 class DatabaseMiddleware(BaseMiddleware):
     def __init__(self, session_factory: async_sessionmaker):
