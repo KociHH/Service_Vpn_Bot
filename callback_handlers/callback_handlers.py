@@ -75,7 +75,6 @@ text = markdown.text(
 
 async def status_admin(db_session: AsyncSession, user_id: int) -> str:
     admins = tuple(settings.Admins())
-    print(admins)
 
     result = await db_session.execute(select(User.admin_status).where(User.user_id == user_id, User.user_id.in_(admins)))
     if result.scalars().first():
@@ -128,7 +127,6 @@ async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMCo
     user_id = call.from_user.id
 
     try:
-        await call.answer()
 
         result = await db_session.execute(select(User).where(User.user_id == user_id))
         existing_user = result.scalars().first()
@@ -136,7 +134,7 @@ async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMCo
         if existing_user:
             if existing_user.email is None:
                 await state.set_state(Email.email)
-
+                await call.answer()
                 await call.message.answer(
                     text=text,
                     reply_markup=build_net_keyboard(),
@@ -144,6 +142,11 @@ async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMCo
                 await process_callback_data(call, state)
 
             else:
+                await call.answer()
+                await call.bot.send_chat_action(
+                    chat_id=call.message.chat.id,
+                    action=ChatAction.TYPING,
+                )
                 await process_callback_data(call, state)
                 await handle_month_subscription(call, state)
                 await state.clear()

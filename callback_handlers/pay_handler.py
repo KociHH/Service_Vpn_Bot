@@ -34,8 +34,6 @@ router = Router(name=__name__)
 
 @router.callback_query(CashCK.filter())
 async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext, db_session: AsyncSession):
-    data = call.data
-    print(data)
     try:
         # Создаем экземпляр класса info_month
 
@@ -59,14 +57,6 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
             price, month, description = subscription.change_month_price()
             markup = await subscription.oplatas(call.message, db_session)
 
-            print(
-                f"Name: {call.from_user.full_name}, "
-                f"id: {call.from_user.id}, "
-                f"month: {month}, "
-                f"price: {price}, "
-                f"description: {description}, "
-                f"action: {callback_data.action}"
-            )
             await call.message.bot.send_chat_action(
                 chat_id=call.message.chat.id,
                 action=ChatAction.TYPING
