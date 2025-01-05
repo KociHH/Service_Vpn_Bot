@@ -344,7 +344,7 @@ async def handle_three_month(call_or_message: Union[CallbackQuery, Message]):
 async def start(call: CallbackQuery):
 
     text = markdown.text(
-        f"👋 Здравствуйте, {call.from_user.full_name}!\n\n"
+        f"Здравствуйте, {call.from_user.full_name}!\n\n"
         "🪐 Познакомьтесь с AMMO VPN:\n",
         "🌑 I Скорость до 10 Гбит/с\n",
         "👁‍🗨 II Непрерывная маскировка IP-адреса и безопасность\n",
