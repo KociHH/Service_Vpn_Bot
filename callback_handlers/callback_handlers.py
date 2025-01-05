@@ -215,7 +215,7 @@ async def email_update(message: Message, state: FSMContext, db_session: AsyncSes
             await state.clear()
 
     except Exception as e:
-        raise e
+        raise ValueError(f'Ошибка при обработке email пользователя {e}')
 
 
 async def handle_month_subscription(call_or_message: Union[CallbackQuery, Message], state: FSMContext):
@@ -225,7 +225,7 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
         state_data = await state.get_data()
         data = state_data.get("action")
     else:
-        raise ValueError("Invalid input type. Expected CallbackQuery or Message.")
+        raise ValueError("Недопустимый тип ввода. Ожидаемый запрос CallbackQuery или Message")
     logger.info(f"Полученные данные до разборки: {data}")
     if not data:
         await call_or_message.answer("Ошибка: данные не найдены.")

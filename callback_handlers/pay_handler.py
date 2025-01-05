@@ -95,6 +95,10 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
 
 @router.callback_query(lambda i: 'test_check_' in i.data)
 async def check_handler(call: CallbackQuery, db_session: AsyncSession, state: FSMContext):
+    await call.message.bot.send_chat_action(
+        chat_id=call.message.chat.id,
+        action=ChatAction.TYPING
+    )
 
     current_time = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -121,11 +125,6 @@ async def check_handler(call: CallbackQuery, db_session: AsyncSession, state: FS
             result = check(payment_id)
 
         if not result:
-            await call.message.bot.send_chat_action(
-                chat_id=call.message.chat.id,
-                action=ChatAction.TYPING
-            )
-
             await call.message.answer(
                 '❗ Оплата не прошла ❗\n\n'
                 'Если вы уверены, что оплатили заказ, пожалуйста, '
@@ -133,15 +132,8 @@ async def check_handler(call: CallbackQuery, db_session: AsyncSession, state: FS
             )
             return
 
-
-
         # Оплата успешна
         await upsert_user(db_session=db_session, call_and_message=call, email=None)
-
-        await call.message.bot.send_chat_action(
-            chat_id=call.message.chat.id,
-            action=ChatAction.TYPING
-        )
 
         button = InlineKeyboardMarkup(
             inline_keyboard=[[
