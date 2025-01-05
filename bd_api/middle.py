@@ -1,6 +1,7 @@
 
 import asyncio
 import logging
+
 from settings import SQlpg, SQL_URL
 from aiogram import BaseMiddleware
 from sqlalchemy import select, pool
@@ -8,16 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from typing import Callable, Dict, Any, Awaitable
 from aiogram.types import TelegramObject, CallbackQuery, Message, ReplyKeyboardRemove
 
+
 logger = logging.getLogger(__name__)
 
-
-postgres_url = SQlpg()
 
 engine = create_async_engine(SQL_URL(), future=True, echo=False, poolclass=pool.NullPool, connect_args={"ssl": "require"})
 async_session = async_sessionmaker(engine, expire_on_commit=False,  class_=AsyncSession)
 
 
-# Сreating a midleware for asynchronous connection Potgres
 class DatabaseMiddleware(BaseMiddleware):
     def __init__(self, session_factory: async_sessionmaker):
         super().__init__()
@@ -39,8 +38,3 @@ class DatabaseMiddleware(BaseMiddleware):
                     await session.rollback()
                     logger.error(f"Ошибка при обработке запроса: {e}")
                     raise Exception(f'Ошибка при обработке запроса: {e}') from e
-
-
-
-# if __name__ == '__main__':
-#     asyncio.run(main())

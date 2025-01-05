@@ -20,7 +20,6 @@ from keyboards.inline_keyboard.main_inline_keyboard import Main_menu, return_kb_
 from keyboards.reply_keyboard.admin_panel import admin_kb, rassilka_kb, yes_no_kb
 
 router = Router()
-file_id = 'CAACAgIAAxkBAAENPehnSaTAff8Bp2seJXVgdaalTXS-lwACnA0AArrNuUrJQaN_QYSCkDYE'
 
 # true admin if not admin false
 def is_admin(message: Message) -> bool:
@@ -73,7 +72,7 @@ async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSe
     photo_id = data.get('photo_id')
     caption = data.get('caption')
     gif_id = data.get('gif_id')
-    print(text, caption)
+
 
     users_count = await db_session.execute(select(func.count(User.id)))
     total_users = users_count.scalar()
@@ -202,16 +201,14 @@ async def handle_commands_in_state(message: Message, state: FSMContext):
         if handler := command_handlers.get(message.text):
             await handler(message)
         else:
-            print(f"Неизвестная команда: {message.text}")
+            logging.warning(f"Неизвестная команда: {message.text}")
 
     except Exception as e:
-        print(f"Ошибка при обработке команды {message.text}: {e}")
         logging.error(f"Ошибка при обработке команды {message.text}: {e}")
         await message.answer(
             "Произошла ошибка при выполнении команды",
             reply_markup=ReplyKeyboardRemove()
         )
-
 
 # handler
 @router.message(Command('start', prefix='/'))
@@ -237,27 +234,3 @@ async def help(message: Message):
         '💬Если у вас возникли вопросы, смело обращайтесь в поддержку AMMO VPN - @ammosupport',
         reply_markup=return_kb_support()
     )
-
-
-path = "./img"
-config: Config = load_path()
-bot = Bot(config.tg_bot.token)
-
-
-# saves the sent photo
-@router.message(F.photo)
-async def handle_photo(message: types.Message):
-
-    photo = message.photo[-1]
-    file_info = await bot.get_file(photo.file_id)
-
-    file_name = f"{file_info.file_unique_id}.png"
-    file_path = os.path.join(path, file_name)
-
-    if os.path.exists(file_path):
-        print(f"Фотография с именем {file_name} уже существует.")
-        return
-
-
-    await bot.download_file(file_info.file_path, destination=file_path)
-    print(f"Фотография сохранена как {file_name}!")

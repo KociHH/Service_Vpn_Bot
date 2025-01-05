@@ -4,6 +4,7 @@ import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String, BIGINT, BigInteger, Date, Float, ForeignKey
+from sqlalchemy.testing.plugin.plugin_base import logging
 
 from bd_api.middle import engine
 

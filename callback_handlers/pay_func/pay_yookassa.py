@@ -78,7 +78,7 @@ def check(payment_id):
     try:
         logging.info(f'Payment status: {payment.status}')
         if payment.status == "succeeded":
-            print(payment.metadata)
+            logging.info(payment.metadata)
             return payment.metadata
         else:
             return False

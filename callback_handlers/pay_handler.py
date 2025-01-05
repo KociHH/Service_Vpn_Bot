@@ -16,6 +16,7 @@ from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import settings
+from bd_api.middle import logger
 # from bd_api.middlewares.db_sql import info_month
 from bd_api.middlewares.sa_tables import User, UserUpdater, Payment
 from callback_handlers.callback_handlers import upsert_user, purchase
@@ -27,8 +28,6 @@ from keyboards.inline_keyboard.pay_inline_keyboard import CashCK, CashMenu, info
 from keyboards.inline_keyboard.main_inline_keyboard import info, info3, info2, MainCD, Main
 
 router = Router(name=__name__)
-
-
 
 
 
@@ -95,7 +94,6 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
 
 @router.callback_query(lambda i: 'test_check_' in i.data)
 async def check_handler(call: CallbackQuery, db_session: AsyncSession, state: FSMContext):
-    data_state = await state.get_data()
 
     current_time = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -248,7 +246,7 @@ async def giv_config(call: CallbackQuery, state: FSMContext, db_session: AsyncSe
                 reply_markup=inline_kb
             )
 
-            print(f'Пользователь {clickable_user} запросил файл на {value}')
+            logger.info(f'Пользователь {clickable_user} запросил файл на {value}')
 
     else:
         logging.error(f"Некорректные данные в состоянии: {data}")

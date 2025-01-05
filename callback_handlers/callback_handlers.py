@@ -13,6 +13,7 @@ from aiogram.utils import markdown
 from humanfriendly.terminal import message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.testing.plugin.plugin_base import logging
 
 import settings
 from FSM.sates import Email
@@ -125,7 +126,10 @@ async def upsert_user(
 @router.callback_query(MonthCD.filter())
 async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMContext):
     user_id = call.from_user.id
-
+    await call.bot.send_chat_action(
+        chat_id=call.message.chat.id,
+        action=ChatAction.TYPING,
+    )
     try:
 
         result = await db_session.execute(select(User).where(User.user_id == user_id))
@@ -143,10 +147,6 @@ async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMCo
 
             else:
                 await call.answer()
-                await call.bot.send_chat_action(
-                    chat_id=call.message.chat.id,
-                    action=ChatAction.TYPING,
-                )
                 await process_callback_data(call, state)
                 await handle_month_subscription(call, state)
                 await state.clear()
@@ -226,7 +226,7 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
         data = state_data.get("action")
     else:
         raise ValueError("Invalid input type. Expected CallbackQuery or Message.")
-    print(f"Полученные данные до разборки: {data}")
+    logger.info(f"Полученные данные до разборки: {data}")
     if not data:
         await call_or_message.answer("Ошибка: данные не найдены.")
         return
@@ -252,7 +252,7 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
     else:
         await call_or_message.answer("Ошибка: отсутствуют данные о месяце.", show_alert=True)
         return
-    print(f"Полученные данные после разборки: {callback_dict}")
+    logger.info(f"Полученные данные после разборки: {callback_dict}")
 
     required_fields = ['month', 'action']
     if not all(field in callback_dict for field in required_fields):
@@ -291,7 +291,7 @@ async def handle_one_month(call_or_message: Union[CallbackQuery, Message]):
     elif isinstance(call_or_message, Message):
         message = call_or_message
     else:
-        raise ValueError("Invalid input type. Expected CallbackQuery or Message.")
+        raise ValueError("Недопустимый тип ввода. Ожидаемый запрос CallbackQuery или Message")
 
     try:
         await message.answer(
@@ -299,7 +299,7 @@ async def handle_one_month(call_or_message: Union[CallbackQuery, Message]):
             reply_markup=Cash_Bt()
         )
     except Exception as e:
-        print(f"Error editing message: {e}")
+        logger.error(f"Ошибка при отправке сообщения: {e}")
 
 
 async def handle_two_month(call_or_message: Union[CallbackQuery, Message]):
@@ -309,7 +309,7 @@ async def handle_two_month(call_or_message: Union[CallbackQuery, Message]):
     elif isinstance(call_or_message, Message):
         message = call_or_message
     else:
-        raise ValueError("Invalid input type. Expected CallbackQuery or Message.")
+        raise ValueError("Недопустимый тип ввода. Ожидаемый запрос CallbackQuery или Message")
 
     try:
         await message.answer(
@@ -317,7 +317,7 @@ async def handle_two_month(call_or_message: Union[CallbackQuery, Message]):
             reply_markup=Cash_Bt_Two()
         )
     except Exception as e:
-        print(f"Error editing message: {e}")
+        logger.error(f"Ошибка при отправке сообщения: {e}")
 
 
 async def handle_three_month(call_or_message: Union[CallbackQuery, Message]):
@@ -327,7 +327,7 @@ async def handle_three_month(call_or_message: Union[CallbackQuery, Message]):
     elif isinstance(call_or_message, Message):
         message = call_or_message
     else:
-        raise ValueError("Invalid input type. Expected CallbackQuery or Message.")
+        raise ValueError("Недопустимый тип ввода. Ожидаемый запрос CallbackQuery или Message")
 
     try:
         await message.answer(
@@ -335,7 +335,7 @@ async def handle_three_month(call_or_message: Union[CallbackQuery, Message]):
             reply_markup=Cash_Bt_Tree()
         )
     except Exception as e:
-        print(f"Error editing message: {e}")
+        logger.error(f"Ошибка при отправке сообщения: {e}")
 
 
 

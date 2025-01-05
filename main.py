@@ -53,8 +53,6 @@ async def bot_webhook(request: Request):
     await dp.feed_update(bot, update)
     return {'status': 'ok'}
 
-response = requests.post(f'https://api.telegram.org/bot{config.tg_bot.token}/setWebhook', data={'url': webhook_fn['WEBHOOK_URL_RAILWAY']})
-print(response.text)
 
 if __name__ == "__main__":
     import uvicorn
