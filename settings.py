@@ -80,7 +80,9 @@ def WEBHOOK(path: str | None = None):
         'WEBHOOK_URL': env('WEBHOOK_URL'),
         'WEBHOOK_PATH': env('WEBHOOK_PATH'),
 
+
         "WEBHOOK_URL_RAILWAY": env('WEBHOOK_URL_RAILWAY'),
+        "HOST_RAILWAY": env('HOST_RAILWAY'),
         "PORT_RAILWAY": env.int('PORT_RAILWAY'),
     }
     return settings

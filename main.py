@@ -58,5 +58,5 @@ print(response.text)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host=webhook_fn['WEBHOOK_URL_RAILWAY'], port=webhook_fn['PORT_RAILWAY'])
+    uvicorn.run(app, host=webhook_fn['HOST_RAILWAY'], port=webhook_fn['PORT_RAILWAY'])
 
