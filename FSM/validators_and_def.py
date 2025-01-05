@@ -3,8 +3,12 @@ from typing import Union
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from email_validator import validate_email, EmailNotValidError
+from sqlalchemy.testing.plugin.plugin_base import logging
 
-# function checking email domen 
+from bd_api.middle import logger
+
+
+# function checking email domen
 async def check_email(email: str, message: Message | None = None):
     try:
         v = validate_email(email)
@@ -15,7 +19,8 @@ async def check_email(email: str, message: Message | None = None):
     except EmailNotValidError as e:
         if message:
             await message.answer(f"❌ Этот email не валидный, попробуйте еще раз.")
-            raise e
+        logger.error(f'Ошибка при обработке email пользователя {message.from_user.full_name}, {email}, ошибка {e}')
+
 
 # Saved data for callback and for message
 async def process_callback_data(call_message: Union[CallbackQuery, Message], state: FSMContext):
@@ -24,9 +29,10 @@ async def process_callback_data(call_message: Union[CallbackQuery, Message], sta
         try:
             callback_data = call_message.data
             callback_dict = {k: int(v) if k == 'month' else v for k, v in (item.split(':') for item in callback_data.split(','))}
-            print(f'Пользователь с email {callback_dict}')
+
+            logger.info(f'Пользователь с email {callback_dict}')
             await state.update_data(action=callback_dict)
         except Exception as e:
-            print(f"Ошибка обработки callback_data: {call_message.data}, {e}")
+            logger.error(f"Ошибка обработки callback_data: {call_message.data}, {e}")
     else:
-        print(f"Не удалось обработать callback_data: {call_message.data}")
+        logger.error(f"Не удалось обработать callback_data: {call_message.data}")

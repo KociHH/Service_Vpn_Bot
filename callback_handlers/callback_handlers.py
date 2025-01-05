@@ -126,10 +126,6 @@ async def upsert_user(
 @router.callback_query(MonthCD.filter())
 async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMContext):
     user_id = call.from_user.id
-    await call.bot.send_chat_action(
-        chat_id=call.message.chat.id,
-        action=ChatAction.TYPING,
-    )
     try:
 
         result = await db_session.execute(select(User).where(User.user_id == user_id))
@@ -163,6 +159,7 @@ async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMCo
 
             if again_existing_user and again_existing_user.email is None:
                 await state.set_state(Email.email)
+                await call.answer()
                 await call.message.answer(
                     text=text,
                     reply_markup=build_net_keyboard(),
@@ -174,7 +171,7 @@ async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMCo
 
     except Exception as e:
         error_message = traceback.format_exc()
-        print(f"Ошибка: {error_message} и {e}")
+        logger.error(f"Ошибка: {error_message} и {e}")
         await call.answer(f"⚙️ Произошла ошибка, скоро исправим", show_alert=True)
 
 
@@ -198,11 +195,6 @@ async def no_message(message: Message, db_session: AsyncSession, state: FSMConte
 async def email_update(message: Message, state: FSMContext, db_session: AsyncSession):
     email = message.text
     try:
-            await message.bot.send_chat_action(
-                chat_id=message.chat.id,
-                action=ChatAction.TYPING,
-            )
-
             await check_email(email=email, message=message)  # Проверяем формат email
             await upsert_user(
                 db_session=db_session,
