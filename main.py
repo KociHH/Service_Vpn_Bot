@@ -38,7 +38,7 @@ app = FastAPI()
 async def lifespan(app: FastAPI):
     webhook_info = await bot.get_webhook_info()
     if webhook_info.url != webhook_fn['WEBHOOK_URL_RAILWAY']:
-        await bot.set_webhook(webhook_fn['WEBHOOK_URL'])
+        await bot.set_webhook(webhook_fn['WEBHOOK_URL_RAILWAY'])
     yield
     await bot.delete_webhook()
     await bot.session.close()
