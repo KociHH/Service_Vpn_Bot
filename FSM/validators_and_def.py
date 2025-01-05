@@ -19,13 +19,12 @@ async def check_email(email: str, message: Message | None = None):
     except EmailNotValidError as e:
         if message:
             await message.answer(f"❌ Этот email не валидный, попробуйте еще раз.")
-        logger.error(f'Ошибка при обработке email пользователя {message.from_user.full_name}, {email}, ошибка {e}')
+        logger.error(f'Ошибка при обработке email пользователя {message.from_user.full_name}, {email}, ошибка: {e}')
 
 
 # Saved data for callback and for message
 async def process_callback_data(call_message: Union[CallbackQuery, Message], state: FSMContext):
     if isinstance(call_message.data, str):
-        print(call_message.data)
         try:
             callback_data = call_message.data
             callback_dict = {k: int(v) if k == 'month' else v for k, v in (item.split(':') for item in callback_data.split(','))}

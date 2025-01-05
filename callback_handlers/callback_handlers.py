@@ -195,6 +195,10 @@ async def no_message(message: Message, db_session: AsyncSession, state: FSMConte
 async def email_update(message: Message, state: FSMContext, db_session: AsyncSession):
     email = message.text
     try:
+            await message.bot.send_chat_action(
+                chat_id=message.chat.id,
+                action=ChatAction.TYPING,
+            )
             await check_email(email=email, message=message)  # Проверяем формат email
             await upsert_user(
                 db_session=db_session,
