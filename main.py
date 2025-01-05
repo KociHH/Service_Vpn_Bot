@@ -37,14 +37,14 @@ app = FastAPI()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     webhook_info = await bot.get_webhook_info()
-    if webhook_info.url != webhook_fn['WEBHOOK_URL']:
+    if webhook_info.url != webhook_fn['WEBHOOK_URL_RAILWAY']:
         await bot.set_webhook(webhook_fn['WEBHOOK_URL'])
     yield
     await bot.delete_webhook()
     await bot.session.close()
 
 app.lifespan = lifespan
-print(webhook_fn['WEBHOOK_URL'])
+print(webhook_fn['WEBHOOK_URL_RAILWAY'])
 @app.post('/webhook')
 async def bot_webhook(request: Request):
     data = await request.json()
@@ -53,9 +53,10 @@ async def bot_webhook(request: Request):
     await dp.feed_update(bot, update)
     return {'status': 'ok'}
 
-response = requests.post(f'https://api.telegram.org/bot{config.tg_bot.token}/setWebhook', data={'url': webhook_fn['WEBHOOK_URL']})
+response = requests.post(f'https://api.telegram.org/bot{config.tg_bot.token}/setWebhook', data={'url': webhook_fn['WEBHOOK_URL_RAILWAY']})
 print(response.text)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host=webhook_fn['host'], port=webhook_fn['port'])
+    uvicorn.run(app, host=webhook_fn['WEBHOOK_URL_RAILWAY'], port=webhook_fn['PORT_RAILWAY'])
+

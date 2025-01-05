@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 
 from bd_api.middle import engine
 from settings import SQlpg
-postgres_url = SQlpg(path='.env')
+# postgres_url = SQlpg(path='.env')
 
 from bd_api.middlewares.sa_tables import Base
 

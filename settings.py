@@ -79,10 +79,13 @@ def WEBHOOK(path: str | None = None):
         'host': env('HOST'),
         'WEBHOOK_URL': env('WEBHOOK_URL'),
         'WEBHOOK_PATH': env('WEBHOOK_PATH'),
+
+        "WEBHOOK_URL_RAILWAY": env('WEBHOOK_URL_RAILWAY'),
+        "PORT_RAILWAY": env.int('PORT_RAILWAY'),
     }
     return settings
 
-
+# localhost
 def SQlpg(path: Optional[str] = None) -> str:
     env: Env = Env()
     env.read_env(path)
@@ -97,3 +100,15 @@ def SQlpg(path: Optional[str] = None) -> str:
     return postgres_url
 
 print(SQlpg())
+
+# railway
+def SQL_URL(path: str | None = None) -> str:
+    env = Env()
+    if path:
+        env.read_env(path)
+    else:
+        env.read_env()
+
+    return env('DATABASE_URL_PUBLIC')
+
+print(SQL_URL())
