@@ -3,10 +3,10 @@ import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String, BIGINT, BigInteger, Date, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, BIGINT, BigInteger, Date, Float, ForeignKey, func
 from sqlalchemy.testing.plugin.plugin_base import logging
 
-from bd_api.middle import engine
+from bd_api.middle import engine, logger
 
 Base = declarative_base()
 
@@ -22,15 +22,14 @@ class User(Base):
 
 
 
-class Payment(Base):
-    __tablename__ = "payments"
+class Subscribers(Base):
+    __tablename__ = "subscribers"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey('users.user_id'), unique=True,nullable=False,)
-    status = Column(String, nullable=False)
-    active_data = Column(Date, nullable=False, default='default')
-    month = Column(Integer, nullable=True)
-    month_two = Column(Integer, nullable=True)
-    month_tree = Column(Integer, nullable=True)
+    user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False)
+    month = Column(Integer, nullable=False)
+    start_date = Column(Date, nullable=False, default=func.now())
+    end_date = Column(Date, nullable=False)
+    status = Column(String, nullable=False, default="active")
 
 
 class UserUpdater:
@@ -57,6 +56,31 @@ class UserUpdater:
         except Exception as e:
             await db_session.rollback()
             raise RuntimeError(f"Ошибка сохранения пользователя в базу данных: {e}")
+
+
+# class subcriber():
+#     def __init__(self, user: Subscribers, month: int, data: dict, start_date: datetime.date, end_date: datetime.date):
+#         self.user = user
+#         self.month = month
+#         self.data = data
+#         self.start_date = start_date
+#         self.end_date = end_date
+#
+#     def Update_Subscribers(self):
+#         pass
+#
+#
+#     def month_time(self):
+#
+#         if self.month == self.data["month: 1"]:
+#             duration = 30
+#         elif self.month == self.data["month: 2"]:
+#             duration = 60
+#         elif self.month == self.data["month: 3"]:
+#             duration = 90
+#         else:
+#             logger.error('Неизвестная дата')
+#         return int(duration)
 
 
 async def create_tables():

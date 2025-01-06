@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import settings
 from bd_api.middle import logger
 # from bd_api.middlewares.db_sql import info_month
-from bd_api.middlewares.sa_tables import User, UserUpdater, Payment
+from bd_api.middlewares.sa_tables import User, UserUpdater
 from callback_handlers.callback_handlers import upsert_user, purchase
 # from callback_handlers.pay_func.pay_yookassa import check_one, \
 #     check_tree, check_two
@@ -37,7 +37,8 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
         chat_id=call.message.chat.id,
         action=ChatAction.TYPING
     )
-
+    data = call.data
+    print(data)
     try:
         # Создаем экземпляр класса info_month
 
