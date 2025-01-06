@@ -37,8 +37,6 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
         chat_id=call.message.chat.id,
         action=ChatAction.TYPING
     )
-    data = call.data
-    print(data)
     try:
         # Создаем экземпляр класса info_month
 
@@ -61,6 +59,7 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
 
             price, month, description = subscription.change_month_price()
             markup = await subscription.oplatas(call.message, db_session)
+            print(month)
 
             # Отправляем сообщение с информацией о подписке
             await call.answer()
