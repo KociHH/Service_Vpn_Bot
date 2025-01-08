@@ -1,22 +1,19 @@
 import logging
 import uuid
+import pytz
 
-import asyncio
-from typing import Any
+from typing import Union
 
 import yookassa
-from aiogram import F, Dispatcher, Bot
-from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, LabeledPrice
-from aiogram.utils import markdown
-from aiogram.client.default import DefaultBotProperties
+from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from yookassa import Configuration, Payment
 from aiogram import Router
 
 import settings
-from bd_api.middlewares.sa_tables import User
+from bd_api.middle import logger
+from bd_api.middlewares.sa_tables import subscriber, Subscription
 
 
 def configure_yookassa(true_module):
@@ -73,14 +70,31 @@ def create_oplata(amount, chat_id, email, month, description):
     return payment.confirmation.confirmation_url, payment.id
 
 
-def check(payment_id):
-    payment = yookassa.Payment.find_one(payment_id)
+async def check(payment_id, db_session: AsyncSession, message_callback: Union[Message, CallbackQuery], month: int, date: int):
+    user_id = message_callback.from_user.id
     try:
-        logging.info(f'Payment status: {payment.status}')
-        if payment.status == "succeeded":
-            logging.info(payment.metadata)
-            return payment.metadata
-        else:
+
+        payment = yookassa.Payment.find_one(payment_id)
+
+        if payment is None:
+            logger.error(f'Платёж с ID {payment_id} не найден.')
             return False
+
+        logger.info(f'Payment status: {payment.status}')
+
+        if payment.status != "succeeded":
+            return False
+
+        subscriber_obj = subscriber(
+            user_id=user_id,
+            month=month,
+            start_date=date,
+            end_date=date,
+        )
+        await subscriber_obj.date_Subscribers(db_session=db_session)
+        logger.info(f"Успешно обновил подписку для пользователя: {user_id}.")
+        return payment.metadata
+
     except Exception as e:
-        logging.warning(f'Ошибка при проверке платежа: {e}')
+        logger.warning(f'Ошибка при проверке платежа: {e}, Платёж ID: {payment_id}')
+        return False

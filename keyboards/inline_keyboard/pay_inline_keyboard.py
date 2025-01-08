@@ -10,6 +10,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bd_api.middle import logger
 from bd_api.middlewares.sa_tables import User
 from callback_handlers.pay_func.pay_yookassa import create_oplata
 # create_oplata_two, create_oplata_tree
@@ -78,6 +79,11 @@ class info_month():
         builder = InlineKeyboardBuilder()
         email = await get_all_emails(message.chat.id, db_session=db_session)
         payment_url, payment_id = create_oplata(self.price, message.chat.id, email, self.month, self.description)
+
+        if not payment_url or not payment_id:
+            logger.error(f'Ошибка создания платежа: {payment_url}, {payment_id}')
+            raise ValueError('Ошибка создания платежа')
+
         builder.button(
             text='💳 Приобрести VPN',
             url=payment_url
@@ -89,93 +95,6 @@ class info_month():
         builder.adjust(1)
         return builder.as_markup()
 
-
-# async def oplata(message: Message, db_session: AsyncSession) -> InlineKeyboardMarkup:
-#     builder = InlineKeyboardBuilder()
-#     email = await get_all_emails(message.chat.id, db_session=db_session)
-#     payment_url, payment_id = create_oplata(info.price, message.chat.id, email)
-#     builder.button(
-#         text='💳 Приобрести VPN',
-#         url=payment_url,
-#     )
-#     builder.button(
-#         text='🔄 Поверка оплаты',
-#         callback_data=f'check_{payment_id}'
-#     )
-#     builder.adjust(1)
-#     return builder.as_markup()
-#
-#
-# async def oplata_two(message: Message, db_session: AsyncSession) -> InlineKeyboardMarkup:
-#     builder = InlineKeyboardBuilder()
-#     email = await get_all_emails(message.chat.id, db_session=db_session)
-#     payment_url, payment_id = create_oplata_two(info2.price, message.chat.id, email)
-#     builder.button(
-#         text='💳 Приобрести VPN',
-#         url=payment_url
-#     )
-#     builder.button(
-#         text='🔄 Поверка оплаты',
-#         callback_data=f'two_check_{payment_id}'
-#     )
-#     builder.adjust(1)
-#     return builder.as_markup()
-#
-#
-# async def oplata_tree(message: Message, db_session: AsyncSession) -> InlineKeyboardMarkup:
-#     builder = InlineKeyboardBuilder()
-#     email = await get_all_emails(message.chat.id, db_session=db_session)
-#     payment_url, payment_id = create_oplata_tree(info3.price, message.chat.id, email)
-#     builder.button(
-#         text='💳 Приобрести VPN',
-#         url=payment_url
-#     )
-#     builder.button(
-#         text='🔄 Поверка оплаты',
-#         callback_data=f'tree_check_{payment_id}'
-#     )
-#     builder.adjust(1)
-#     return builder.as_markup()
-
-
-# def get_month(action: CashMenu) -> InlineKeyboardMarkup:
-#     builder = InlineKeyboardBuilder()
-#
-#     builder.button(
-#         text=f"Перейти к оплате",
-#         callback_data=MonthCD(action=action).pack()
-#         )
-#     builder.button(
-#             text='⬅️ Назад',
-#             callback_data=MainCD(action=Main.purchase).pack()
-#     )
-#     builder.adjust(1)
-#     return builder.as_markup()
-# def None_bt() -> InlineKeyboardMarkup:
-#     builder = InlineKeyboardBuilder()
-#     builder.button(
-#         text=f'Перейти к оплате',
-#         callback_data = CashCK(action=CashMenu.MOVE_OPLATA).pack(),
-#     )
-#     return builder.as_markup()
-#
-#
-# def None_bt_two() -> InlineKeyboardMarkup:
-#     builder = InlineKeyboardBuilder()
-#     builder.button(
-#         text=f'Перейти к оплате',
-#         callback_data = CashCK(action=CashMenu.MOVE_OPLATA_TWO).pack(),
-#     )
-#     return builder.as_markup()
-#
-#
-# def None_bt_tree() -> InlineKeyboardMarkup:
-#     builder = InlineKeyboardBuilder()
-#     builder.button(
-#         text=f'Перейти к оплате',
-#         callback_data = CashCK(action=CashMenu.MOVE_OPLATA_TREE).pack(),
-#     )
-#     return builder.as_markup()
 
 
 def Cash_Bt() -> InlineKeyboardMarkup:

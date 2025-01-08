@@ -1,9 +1,11 @@
 import logging
 
 import asyncio
+import os
 from datetime import datetime, timezone
 from typing import Union
 
+import pytz
 from aiogram import F
 from aiogram.client import bot
 from aiogram.enums import ChatAction
@@ -11,6 +13,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import markdown
 from aiogram import Router
+from dotenv import load_dotenv
+from environs import Env
 from sqlalchemy import update
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import settings
 from bd_api.middle import logger
 # from bd_api.middlewares.db_sql import info_month
-from bd_api.middlewares.sa_tables import User, UserUpdater
+from bd_api.middlewares.sa_tables import User, UserUpdater, Subscription, subscriber
 from callback_handlers.callback_handlers import upsert_user, purchase
 # from callback_handlers.pay_func.pay_yookassa import check_one, \
 #     check_tree, check_two
@@ -26,9 +30,11 @@ from callback_handlers.pay_func.pay_yookassa import check
 from keyboards.inline_keyboard.pay_inline_keyboard import CashCK, CashMenu, info_month
 
 from keyboards.inline_keyboard.main_inline_keyboard import info, info3, info2, MainCD, Main
+from utils.date_moscow import get_current_date
 
 router = Router(name=__name__)
-
+current_time = get_current_date(False)
+load_dotenv()
 
 
 @router.callback_query(CashCK.filter())
@@ -61,7 +67,7 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
             markup = await subscription.oplatas(call.message, db_session)
             print(month)
 
-            # Отправляем сообщение с информацией о подписке
+
             await call.answer()
             await call.message.answer(
                 text=(
@@ -71,60 +77,55 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
                 reply_markup=markup
             )
 
-            # Сохраняем данные в состоянии
-            await state.update_data(actions=callback_data.action, action_count=0)
+            await state.update_data(actions=callback_data.action, action_count=0,  count_payment=0, month=int(month))
 
-            logging.info(
-                f"Данные сохранены в состоянии: "
-                f"action={callback_data.action}, "
-                f"price={price}, "
-                f"month={month}, "
-                f"description={description}"
-            )
         else:
             await call.answer("Неизвестная команда.")
 
     except Exception as e:
         error_msg = f'Проблема при обработке оплаты: {e}'
-        logging.exception(error_msg)
         await call.message.answer(
-            "Произошла ошибка при формировании счета. "
+            f"{error_msg}\n"
             "Пожалуйста, попробуйте позже."
         )
 
 
-@router.callback_query(lambda i: 'test_check_' in i.data)
+@router.callback_query(lambda i: i.data.startswith('test_check_'))
 async def check_handler(call: CallbackQuery, db_session: AsyncSession, state: FSMContext):
+    data = await state.get_data()
+    month = data.get("month")
+    counting = data.get("count_payment", 0)
+    print(month, counting)
+
+    if counting > 0:
+        await call.answer('✅ Вы уже совершили оплату, ожидайте ответ от администрации.')
+        return
+
+    if month is None:
+        await call.answer("❗ Ошибка: данные месяца неизвестны.")
+        return
+
     await call.message.bot.send_chat_action(
         chat_id=call.message.chat.id,
         action=ChatAction.TYPING
     )
 
-    current_time = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-
     try:
         await call.answer()
 
-        # Проверка корректности callback_data
+
         if not call.data.startswith("test_check_"):
-            logging.error(f"Некорректные данные callback_data: {call.data}")
+            logger.error(f"Некорректные данные callback_data: {call.data}")
             await call.answer(
                 "❗ Произошла ошибка при проверке платежа.\n"
                 "Пожалуйста, попробуйте позже или обратитесь в поддержку"
             )
             return
 
-        # Извлечение payment_id
         payment_id = call.data[len("test_check_"):]
+        check_ = await check(payment_id, db_session, message_callback=call, month=month, date=get_current_date(True))
 
-
-        # Проверка оплаты
-        if asyncio.iscoroutinefunction(check):
-            result = await check(payment_id)
-        else:
-            result = check(payment_id)
-
-        if not result:
+        if not check_:
             await call.message.answer(
                 '❗ Оплата не прошла ❗\n\n'
                 'Если вы уверены, что оплатили заказ, пожалуйста, '
@@ -132,36 +133,35 @@ async def check_handler(call: CallbackQuery, db_session: AsyncSession, state: FS
             )
             return
 
-        # Оплата успешна
-        await upsert_user(db_session=db_session, call_and_message=call, email=None)
-
         button = InlineKeyboardMarkup(
-            inline_keyboard=[[
-                InlineKeyboardButton(
-                    text="Оповестить об оплате",
-                    callback_data="get_file"
-                )
-            ]]
-        )
-
+                inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text="Оповестить об оплате",
+                        callback_data="get_file"
+                    )
+                ]]
+            )
 
         await call.message.answer(
             markdown.text(
                 "✅ Оплата прошла успешно!\n\n"
                 "Чтобы получить файл с инструкцией, нажмите на кнопку ниже",
                 sep="\n"
-            ),
+                ),
             reply_markup=button
         )
-        logging.info(
-            f"Current Date and Time (UTC): {current_time}\n"
-            f"Current User's Login: {call.from_user.username}\n"
-            f"Checking payment ID: {payment_id}\n"
-            f"User ID: {call.from_user.id}"
+
+        logger.info(
+                f"Current Date and Time (MSK): {current_time}\n"
+                f"Current User's Login: {call.from_user.username}\n"
+                f"Checking payment ID: {payment_id}\n"
+                f"User ID: {call.from_user.id}"
         )
+        counting += 1
+        await state.update_data(count_payment=counting)
 
     except Exception as e:
-        logging.error(f'Ошибка при проверке оплаты: {e}')
+        logger.error(f'Ошибка при проверке оплаты: {e}')
         await call.answer(
             "❗ Произошла ошибка при проверке платежа.\n"
             "Пожалуйста, попробуйте позже или обратитесь в поддержку - @ammosupport\n"
@@ -184,7 +184,7 @@ async def giv_config(call: CallbackQuery, state: FSMContext, db_session: AsyncSe
 
     await state.update_data(action_count=action_count)
 
-    admin_id = 7090846284
+    admin_id = os.getenv('ADMIN_ID')
 
     button_support = InlineKeyboardButton(
         text="🤝 Обратиться в поддержку",
@@ -215,6 +215,7 @@ async def giv_config(call: CallbackQuery, state: FSMContext, db_session: AsyncSe
         await call.answer()
         user = await db_session.execute(select(User).where(User.user_id == call.message.chat.id))
         result = user.scalar_one_or_none()
+
         if result:
             name_user = call.message.chat.full_name
             user_name = call.message.chat.username
@@ -229,9 +230,10 @@ async def giv_config(call: CallbackQuery, state: FSMContext, db_session: AsyncSe
 
             await call.message.bot.send_message(
                 chat_id=admin_id,
-                text=f'Пользователь {clickable_user} запросил файл на {markdown.hbold(value)}'
+                text=f'Пользователь {clickable_user} запросил файл на {markdown.hbold(value)},\n'
+                f'{current_time}'
             )
-            # await call.message.answer(f'Пользователь {clickable_user} запросил файл на {markdown.hbold(value)}')
+
             await call.message.answer(
                 'Ваш запрос отправлен!\n\n'
                 '⌛ В ближайшее время администратор вам ответит.\n\n'

@@ -1,6 +1,8 @@
 import logging
 import os.path
 import random
+from sys import prefix
+
 from settings import Config, load_path
 from aiogram import F
 from aiogram import Bot, Dispatcher, types
@@ -15,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import settings
 from FSM.sates import Admin
-from bd_api.middlewares.sa_tables import User
+from bd_api.middlewares.sa_tables import User, Subscription
 from keyboards.inline_keyboard.main_inline_keyboard import Main_menu, return_kb_support
 from keyboards.reply_keyboard.admin_panel import admin_kb, rassilka_kb, yes_no_kb
 
@@ -157,20 +159,28 @@ async def edit_text_rassilka(message: Message, state: FSMContext, db_session: As
     await state.set_state(Admin.rassilka)
 
 
-# the handler resets whether there is a state
+@router.message(Command('status', prefix='/'))
+async def status_command(message: Message, state: FSMContext, db_session: AsyncSession):
+    chat_id = message.from_user.id
+    result = await db_session.execute(select(Subscription).where(Subscription.user_id == chat_id).order_by(Subscription.end_date.desc()))
+    subscription = result.scalars().first()
+
+    if subscription:
+        await message.answer(
+            f"📄 Информация о вашей подписке:\n\n"
+            f"{samples}\n"
+            f"🗓 Последняя проведенная оплата: {subscription.start_date}\n"
+            f"{samples}\n"
+            f"📅 Дата окончания: {subscription.end_date}\n"
+            f"{samples}\n"
+            f"📌 Ваш статус: {'Активный' if subscription.status == 'active' else 'не активный'}\n"
+        )
+    else:
+        await message.answer('🧐 Вы в данный момент не пользуютесь (пользовались) нашими услугами.')
+
+
 @router.message(Command(commands=['start', 'help', 'admin']), StateFilter("*"))
 async def handle_commands_in_state(message: Message, state: FSMContext):
-
-    # words = ['♻ Клавиатура удалена', '❓ Состояние сброшено']
-    # generator = dict(enumerate(words))
-    #
-    # def gen():
-    #     keys = list(generator.keys())
-    #     random_key = random.choice(keys)
-    #
-    #     return generator[random_key]
-    #
-    # result = gen()
 
     if message.text == '/start':
         result = 'Вы вернулись в главное меню 👇'
@@ -178,6 +188,8 @@ async def handle_commands_in_state(message: Message, state: FSMContext):
         result = 'Вы вернулись в поддержку 👇'
     elif message.text == '/admin':
         result = 'Вы вернулись в /admin 👇'
+    elif message.text == '/status':
+        result = 'Вы вернулись в статистику 👇'
     else:
         result = 'Неизвестная команда'
 
@@ -195,7 +207,8 @@ async def handle_commands_in_state(message: Message, state: FSMContext):
         command_handlers = {
             '/admin': admin,
             '/start': start_handler,
-            '/help': help
+            '/help': help,
+            '/status': status_command,
         }
 
         if handler := command_handlers.get(message.text):

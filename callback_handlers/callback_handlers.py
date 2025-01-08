@@ -28,17 +28,6 @@ from settings import DEFAULT_EMAIL
 
 router = Router()
 
-
-# async def email(user_id: int, db_session: AsyncSession) -> Any | None:
-#     result = await db_session.execute(select(User).where(User.user_id == user_id))
-#     user = result.scalars().first()
-#
-#     if user:
-#         return user.email
-#     else:
-#         return None
-
-# creating variables for text
 text_answer_one = markdown.text(
     f'🗝VPN на {info.month} месяц\n\n'
     f'📄Цена: {info.price} ₽\n\n'
@@ -185,7 +174,6 @@ async def no_message(message: Message, db_session: AsyncSession, state: FSMConte
         email=DEFAULT_EMAIL,
     )
 
-
     await handle_month_subscription(message, state)
     await state.clear()
     return
@@ -222,7 +210,7 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
         data = state_data.get("action")
     else:
         raise ValueError("Недопустимый тип ввода. Ожидаемый запрос CallbackQuery или Message")
-    logger.info(f"Полученные данные до разборки: {data}")
+
     if not data:
         await call_or_message.answer("Ошибка: данные не найдены.")
         return
@@ -248,7 +236,6 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
     else:
         await call_or_message.answer("Ошибка: отсутствуют данные о месяце.", show_alert=True)
         return
-    logger.info(f"Полученные данные после разборки: {callback_dict}")
 
     required_fields = ['month', 'action']
     if not all(field in callback_dict for field in required_fields):
@@ -332,9 +319,6 @@ async def handle_three_month(call_or_message: Union[CallbackQuery, Message]):
         )
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения: {e}")
-
-
-
 
 
 @router.callback_query(
