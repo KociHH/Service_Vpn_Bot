@@ -240,10 +240,9 @@ async def start_handler(message: Message):
 
     await message.answer(text, reply_markup=Main_menu())
 
-# handler
+
 @router.message(Command('help', prefix='/'))
 async def help(message: Message):
     await message.answer(
-        '💬Если у вас возникли вопросы, смело обращайтесь в поддержку AMMO VPN - @ammosupport',
-        reply_markup=return_kb_support()
+        '💬 Если у вас возникли вопросы, смело обращайтесь в поддержку AMMO VPN - @ammosupport',
     )
