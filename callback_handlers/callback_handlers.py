@@ -199,7 +199,7 @@ async def email_update(message: Message, state: FSMContext, db_session: AsyncSes
             await state.clear()
 
     except Exception as e:
-        raise ValueError(f'Ошибка при обработке email пользователя {e}')
+        logger.error(f'Ошибка при обработке email пользователя {e}')
 
 
 async def handle_month_subscription(call_or_message: Union[CallbackQuery, Message], state: FSMContext):
@@ -220,7 +220,7 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
             callback_dict = {k: int(v) if k == 'month' else v for k, v in (item.split(':') for item in data.split(','))}
         except Exception as e:
             await call_or_message.answer(
-                f"Ошибка при разборе данных В handle_month_subscription: {str(e)}",
+                f"Ошибка при разборе данных В handle_month_subscription: {e}",
                 show_alert=True)
             return
 
