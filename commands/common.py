@@ -159,7 +159,7 @@ async def edit_text_rassilka(message: Message, state: FSMContext, db_session: As
     await state.set_state(Admin.rassilka)
 
 
-@router.message(Command(commands=['start', 'help', 'admin']), StateFilter("*"))
+@router.message(Command(commands=['start', 'help', 'admin', 'status']), StateFilter("*"))
 async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
 
     if message.text == '/start':
@@ -230,7 +230,7 @@ async def start_handler(message: Message, db_session: AsyncSession):
 
 
 @router.message(Command('status', prefix='/'))
-async def status_command(message: Message, state: FSMContext, db_session: AsyncSession):
+async def status_command(message: Message, db_session: AsyncSession):
     chat_id = message.from_user.id
     result = await db_session.execute(select(Subscription).where(Subscription.user_id == chat_id).order_by(Subscription.end_date.desc()))
     subscription = result.scalars().first()
