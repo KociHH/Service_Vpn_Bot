@@ -211,8 +211,8 @@ async def help(message: Message):
     )
 
 
-@router.message(Command(commands=['start', 'help', 'admin']), StateFilter("*"))
-async def handle_commands_in_state(message: Message, state: FSMContext):
+@router.message(StateFilter("*"))
+async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
 
     if message.text == '/start':
         result = 'Вы вернулись в главное меню 👇'
@@ -244,7 +244,7 @@ async def handle_commands_in_state(message: Message, state: FSMContext):
         }
 
         if handler := command_handlers.get(message.text):
-            await handler(message)
+            await handler(message, db_session=db_session)
         else:
             logging.warning(f"Неизвестная команда: {message.text}")
 
