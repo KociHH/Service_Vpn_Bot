@@ -187,7 +187,7 @@ async def handle_commands_in_state(message: Message, state: FSMContext, db_sessi
         command_handlers = {
             '/admin': admin,
             '/start': start_handler,
-            '/help': help_command,
+            '/help': lambda m, db_s: help_command(m),
             '/status': status_command,
         }
 
