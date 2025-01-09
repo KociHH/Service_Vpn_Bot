@@ -159,26 +159,6 @@ async def edit_text_rassilka(message: Message, state: FSMContext, db_session: As
     await state.set_state(Admin.rassilka)
 
 
-@router.message(Command('status', prefix='/'))
-async def status_command(message: Message, state: FSMContext, db_session: AsyncSession):
-    chat_id = message.from_user.id
-    result = await db_session.execute(select(Subscription).where(Subscription.user_id == chat_id).order_by(Subscription.end_date.desc()))
-    subscription = result.scalars().first()
-
-    if subscription:
-        await message.answer(
-            f"📄 Информация о вашей подписке:\n\n"
-            f"{samples}\n"
-            f"🗓 Последняя проведенная оплата: {subscription.start_date}\n"
-            f"{samples}\n"
-            f"📅 Дата окончания: {subscription.end_date}\n"
-            f"{samples}\n"
-            f"📌 Ваш статус: {'Активный' if subscription.status == 'active' else 'не активный'}\n"
-        )
-    else:
-        await message.answer('🧐 Вы в данный момент не пользуютесь (пользовались) нашими услугами.')
-
-
 @router.message(Command(commands=['start', 'help', 'admin']), StateFilter("*"))
 async def handle_commands_in_state(message: Message, state: FSMContext):
 
@@ -244,6 +224,26 @@ async def start_handler(message: Message, db_session: AsyncSession):
     )
 
     await message.answer(text, reply_markup=Main_menu())
+
+
+@router.message(Command('status', prefix='/'))
+async def status_command(message: Message, state: FSMContext, db_session: AsyncSession):
+    chat_id = message.from_user.id
+    result = await db_session.execute(select(Subscription).where(Subscription.user_id == chat_id).order_by(Subscription.end_date.desc()))
+    subscription = result.scalars().first()
+
+    if subscription:
+        await message.answer(
+            f"📄 Информация о вашей подписке:\n\n"
+            f"{samples}\n"
+            f"🗓 Последняя проведенная оплата: {subscription.start_date}\n"
+            f"{samples}\n"
+            f"📅 Дата окончания: {subscription.end_date}\n"
+            f"{samples}\n"
+            f"📌 Ваш статус: {'Активный' if subscription.status == 'active' else 'не активный'}\n"
+        )
+    else:
+        await message.answer('🧐 Вы в данный момент не пользуютесь (пользовались) нашими услугами.')
 
 
 @router.message(Command('help', prefix='/'))
