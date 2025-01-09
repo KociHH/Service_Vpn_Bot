@@ -225,7 +225,12 @@ async def handle_commands_in_state(message: Message, state: FSMContext):
 
 # handler
 @router.message(Command('start', prefix='/'))
-async def start_handler(message: Message):
+async def start_handler(message: Message, db_session: AsyncSession):
+    user_id = User(
+        user_id=message.from_user.id,
+    )
+    db_session.add(user_id)
+    await db_session.commit()
 
     text = markdown.text(
         f"Здравствуйте, {message.from_user.full_name}!\n\n"
