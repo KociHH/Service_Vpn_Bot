@@ -158,6 +158,51 @@ async def edit_text_rassilka(message: Message, state: FSMContext, db_session: As
 
     await state.set_state(Admin.rassilka)
 
+
+@router.message(Command(commands=['start', 'help', 'admin']), StateFilter("*"))
+async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
+
+    if message.text == '/start':
+        result = 'Вы вернулись в главное меню 👇'
+    elif message.text == '/help':
+        result = 'Вы вернулись в поддержку 👇'
+    elif message.text == '/admin':
+        result = 'Вы вернулись в /admin 👇'
+    elif message.text == '/status':
+        result = 'Вы вернулись в статистику 👇'
+    else:
+        result = 'Неизвестная команда'
+
+    try:
+        current_state = await state.get_state()
+
+
+        if current_state is not None:
+            await state.clear()
+            await message.answer(
+                result,
+                reply_markup=ReplyKeyboardRemove()
+            )
+
+        command_handlers = {
+            '/admin': admin,
+            '/start': start_handler,
+            '/help': help,
+            '/status': status_command,
+        }
+
+        if handler := command_handlers.get(message.text):
+            await handler(message, db_session)
+        else:
+            logging.warning(f"Неизвестная команда: {message.text}")
+
+    except Exception as e:
+        logging.error(f"Ошибка при обработке команды {message.text}: {e}")
+        await message.answer(
+            "Произошла ошибка при выполнении команды",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
 # handler
 @router.message(Command('start', prefix='/'))
 async def start_handler(message: Message, db_session: AsyncSession):
@@ -209,48 +254,3 @@ async def help(message: Message):
     await message.answer(
         '💬 Если у вас возникли вопросы, смело обращайтесь в поддержку AMMO VPN - @ammosupport',
     )
-
-
-@router.message(StateFilter("*"))
-async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
-
-    if message.text == '/start':
-        result = 'Вы вернулись в главное меню 👇'
-    elif message.text == '/help':
-        result = 'Вы вернулись в поддержку 👇'
-    elif message.text == '/admin':
-        result = 'Вы вернулись в /admin 👇'
-    elif message.text == '/status':
-        result = 'Вы вернулись в статистику 👇'
-    else:
-        result = 'Неизвестная команда'
-
-    try:
-        current_state = await state.get_state()
-
-
-        if current_state is not None:
-            await state.clear()
-            await message.answer(
-                result,
-                reply_markup=ReplyKeyboardRemove()
-            )
-
-        command_handlers = {
-            '/admin': admin,
-            '/start': start_handler,
-            '/help': help,
-            '/status': status_command,
-        }
-
-        if handler := command_handlers.get(message.text):
-            await handler(message, db_session=db_session)
-        else:
-            logging.warning(f"Неизвестная команда: {message.text}")
-
-    except Exception as e:
-        logging.error(f"Ошибка при обработке команды {message.text}: {e}")
-        await message.answer(
-            "Произошла ошибка при выполнении команды",
-            reply_markup=ReplyKeyboardRemove()
-        )
