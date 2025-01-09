@@ -187,7 +187,7 @@ async def handle_commands_in_state(message: Message, state: FSMContext, db_sessi
         command_handlers = {
             '/admin': admin,
             '/start': start_handler,
-            '/help': help,
+            '/help': help_command,
             '/status': status_command,
         }
 
@@ -250,7 +250,7 @@ async def status_command(message: Message, state: FSMContext, db_session: AsyncS
 
 
 @router.message(Command('help', prefix='/'))
-async def help(message: Message):
+async def help_command(message: Message):
     await message.answer(
         '💬 Если у вас возникли вопросы, смело обращайтесь в поддержку AMMO VPN - @ammosupport',
     )
