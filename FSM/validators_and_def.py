@@ -1,5 +1,4 @@
 from typing import Union
-
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from email_validator import validate_email, EmailNotValidError

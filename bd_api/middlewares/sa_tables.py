@@ -47,8 +47,8 @@ class UserUpdater:
     async def save_to_db(self, db_session: AsyncSession):
         try:
             self.update()
-            await db_session.commit()
             db_session.add(self.user)
+            await db_session.commit()
         except Exception as e:
             await db_session.rollback()
             raise RuntimeError(f"Ошибка сохранения пользователя в базу данных: {e}")

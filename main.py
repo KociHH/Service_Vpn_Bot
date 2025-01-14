@@ -1,8 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, Request
-import requests
 from aiogram import Dispatcher, Router, Bot
 import logging
 from aiogram.enums import ParseMode
