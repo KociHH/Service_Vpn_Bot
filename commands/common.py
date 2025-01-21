@@ -252,5 +252,5 @@ async def status_command(message: Message, db_session: AsyncSession):
 @router.message(Command('help', prefix='/'))
 async def help_command(message: Message):
     await message.answer(
-        f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку AMMO VPN - {markdown.hbold("SupportAmmo", "https://t.me/ammosupport")}',
+        f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку AMMO VPN - {markdown.hlink("SupportAmmo", url="https://t.me/ammosupport")}',
     )
