@@ -1,4 +1,4 @@
-__all__ = 'router',
+__all__ = 'router'
 
 from aiogram import Router
 from commands.common import router as ammo_router
