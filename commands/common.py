@@ -38,7 +38,7 @@ async def admin(message: Message, state: FSMContext):
         )
 
 # state handler
-@router.message(F.text == '📢 Рассылка')
+@router.message(F.text == '📢 Рассылка', StateFilter(Admin.admin))
 async def rassilka(message: Message, state: FSMContext, db_session: AsyncSession):
     await state.set_state(Admin.rassilka)
 
