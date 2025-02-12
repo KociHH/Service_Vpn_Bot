@@ -160,7 +160,7 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
             )
             return
 
-        await call.answer(f'Подписка продлена до: {markdown.hbold(end)}')
+        await call.answer(f'Подписка продлена до: {markdown.hcode(end)}')
         await call.message.bot.send_message(
             chat_id=admin_id,
             text=
