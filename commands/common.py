@@ -1,7 +1,11 @@
+import io
 import logging
 import os.path
 import random
 from sys import prefix
+
+import redis
+from aiohttp.web_fileresponse import content_type
 
 from settings import Config, load_path
 from aiogram import F
@@ -19,13 +23,21 @@ import settings
 from FSM.sates import Admin
 from bd_api.middlewares.sa_tables import User, Subscription
 from keyboards.inline_keyboard.main_inline_keyboard import Main_menu, return_kb_support
-from keyboards.reply_keyboard.admin_panel import admin_kb, rassilka_kb, yes_no_kb
+from keyboards.reply_keyboard.admin_panel import admin_kb, rassilka_kb, yes_no_kb, yes_no, exit_
+from utils.image_ import save_img_to_db, image_extract, send_crcode, count_images_db
+from utils.text_message import samples_
 
 router = Router()
+logger = logging.getLogger(__name__)
+# redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 # true admin if not admin false
 def is_admin(message: Message) -> bool:
     return message.from_user.id in settings.Admins()
+
+@router.message(F.text == '⬅️ Вернуться', StateFilter("*"))
+async def back(message: Message, state: FSMContext):
+    await admin(message=message, state=state)
 
 # main state if admin so admin panel
 @router.message(Command('admin', prefix='/'))
@@ -37,6 +49,105 @@ async def admin(message: Message, state: FSMContext):
         reply_markup=rassilka_kb()
         )
 
+@router.message(F.text == '🧠 Проверить кол-во фото в бд', StateFilter(Admin.admin))
+async def check_image(message: Message, db_session: AsyncSession):
+    await count_images_db(message, db_session)
+
+@router.message(F.text == '🛠 Загрузить файлы', StateFilter(Admin.admin))
+async def files(message: Message, state: FSMContext):
+    await state.set_state(Admin.file)
+    await message.answer(
+        text=f"⛔️ Уточнение ⛔️\n"
+             f" - Принимает только файлы формата: {markdown.hbold('.rar')} или {markdown.hbold('.zip')}.\n"
+             f" - Присылайте строго по одному файлу за раз.\n"
+             f" - Файл не должен содержать что то кроме изображений.\n"
+             f" - Изображения должны иметь уникальное имя.\n"
+             f" - Лимит на архив 10 мб",
+        reply_markup=exit_()
+    )
+    await message.answer(
+        text="Отправьте файл:"
+    )
+
+
+@router.message(StateFilter(Admin.file))
+async def check_file(message: Message, state: FSMContext):
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    doc = message.document
+    if message.photo and message.photo[-1]:
+        await message.answer(
+            text="Вы отправили фото, повторите попытку с файлом."
+        )
+    elif message.text:
+        await message.answer(
+            text="Вы отправили текст, повторите попытку с файлом."
+        )
+    elif doc:
+        if doc.file_name.endswith(('.rar', '.zip')):
+            if doc.file_size > MAX_FILE_SIZE:
+                await message.answer(text="Я же говорил не больше 10 мб, изменяй")
+                return
+
+            file_id = doc.file_id
+            file_name = doc.file_name
+            if file_id and file_name:
+                file = await message.bot.get_file(file_id)
+                file_stream = io.BytesIO()
+                await message.bot.download_file(file.file_path, file_stream)
+                file_bytes = file_stream.getvalue()
+
+                await state.update_data(
+                    {
+                    "file_bytes": file_bytes,
+                    'file_name': file_name
+                })
+                await state.set_state(Admin.check_file)
+                await message.answer(
+                    text="Файл успешно обработан. Вы уверены, что хотите загрузить файл?",
+                    reply_markup=yes_no()
+            )
+            else:
+                await message.answer("Не удалось обработать файл.")
+        else:
+            await message.answer(
+                text="Неверный формат файла, повторите попытку снова."
+            )
+    else:
+        await message.answer(
+            text="Вы не отправили файл, повторите попытку снова."
+        )
+
+@router.message(F.text == 'Да', StateFilter(Admin.check_file))
+async def check_yes(message: Message, state: FSMContext, db_session: AsyncSession):
+    img_data = await state.get_data()
+    file_bytes = img_data.get('file_bytes')
+    file_name = img_data.get('file_name')
+
+    if file_bytes and file_name:
+        images, i = await image_extract(file_bytes=file_bytes, file_name=file_name, message=message, db_session=db_session)
+        if images:
+            await save_img_to_db(images, db_session)
+            await message.answer(
+                f'✅ Успешно загружено. Кол-во: {markdown.hbold(i)}',
+                reply_markup=ReplyKeyboardRemove()
+            )
+        else:
+            await message.answer(
+                text='❗️ В архиве нет или не осталось изображений.',
+                reply_markup=ReplyKeyboardRemove()
+            )
+    else:
+        await message.answer(
+            text='❌ Файл не найден.',
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+    await state.clear()
+
+@router.message(F.text == 'Нет', StateFilter(Admin.check_file))
+async def check_no(message: Message, state: FSMContext):
+    await files(message, state)
+
 # state handler
 @router.message(F.text == '📢 Рассылка', StateFilter(Admin.admin))
 async def rassilka(message: Message, state: FSMContext, db_session: AsyncSession):
@@ -44,7 +155,7 @@ async def rassilka(message: Message, state: FSMContext, db_session: AsyncSession
 
     await message.answer(
         'Введите текст рассылки:',
-        reply_markup=ReplyKeyboardRemove()
+        reply_markup=exit_()
     )
 
 # state handler
@@ -63,6 +174,8 @@ async def edit_rassilka(message: Message, state: FSMContext, db_session: AsyncSe
         text=f'Вы уверены, что хотите отправить? Если нет то нажмите на кнопку [📝 Изменить текст]',
         reply_markup=yes_no_kb()
     )
+
+
 
 samples = '________________________________'
 
@@ -112,8 +225,6 @@ async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSe
             logging.error(f"Ошибка отправки сообщения пользователю {user}: {e}")
 
 
-
-    # Отправляем итоговую статистику один раз после всех отправок
     await message.answer(
         f"📊 Статистика рассылки:\n"
         f"{samples}\n"
@@ -157,7 +268,6 @@ async def edit_text_rassilka(message: Message, state: FSMContext, db_session: As
     )
 
     await state.set_state(Admin.rassilka)
-
 
 @router.message(Command(commands=['start', 'help', 'admin', 'status']), StateFilter("*"))
 async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
@@ -234,16 +344,15 @@ async def status_command(message: Message, db_session: AsyncSession):
     chat_id = message.from_user.id
     result = await db_session.execute(select(Subscription).where(Subscription.user_id == chat_id).order_by(Subscription.end_date.desc()))
     subscription = result.scalars().first()
+    l = [
+        "📄 Информация о вашей подписке:",
+        f"🗓 Последняя проведенная оплата: {markdown.hcode(subscription.start_date)}",
+        f"📅 Дата окончания: {markdown.hcode(subscription.end_date)}",
+        f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'не активный')}"]
 
     if subscription:
         await message.answer(
-            f"📄 Информация о вашей подписке:\n\n"
-            f"{samples}\n"
-            f"🗓 Последняя проведенная оплата: {subscription.start_date}\n"
-            f"{samples}\n"
-            f"📅 Дата окончания: {subscription.end_date}\n"
-            f"{samples}\n"
-            f"📌 Ваш статус: {'Активный' if subscription.status == 'active' else 'не активный'}\n"
+            await samples_(l)
         )
     else:
         await message.answer('🧐 Вы в данный момент не пользуютесь (пользовались) нашими услугами.')
@@ -251,6 +360,9 @@ async def status_command(message: Message, db_session: AsyncSession):
 
 @router.message(Command('help', prefix='/'))
 async def help_command(message: Message):
+
     await message.answer(
-        f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку AMMO VPN - {markdown.hlink("SupportAmmo", url="https://t.me/ammosupport")}',
+        text=markdown.text(
+            f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink("AMMO VPN", url="https://t.me/ammosupport")}\n\n',
+        ),
     )

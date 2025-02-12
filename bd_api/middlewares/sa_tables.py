@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 import pytz
 from alembic.util import status
-from sqlalchemy import select
+from sqlalchemy import select, LargeBinary
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String, BIGINT, BigInteger, Date, Float, ForeignKey, func
@@ -11,6 +11,14 @@ from bd_api.middle import engine, logger
 from utils.date_moscow import get_current_date
 
 Base = declarative_base()
+
+class Images(Base):
+    __tablename__ = 'images'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    id_image = Column(BigInteger, nullable=False, unique=True)
+    image = Column(LargeBinary, nullable=False)
+    name = Column(String, nullable=True)
 
 class User(Base):
     __tablename__ = "users"
@@ -99,6 +107,7 @@ class subscriber():
 
             existing_subscription.end_date += timedelta(days=month_days)
             existing_subscription.start_date = current_date
+            db_session.add(existing_subscription)
             await db_session.commit()
             logger.info(
                 f"Продлеваем подписку для пользователя {self.user_id}. "

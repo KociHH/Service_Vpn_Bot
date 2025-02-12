@@ -1,3 +1,4 @@
+import logging
 import os
 
 from datetime import datetime, timedelta
@@ -15,13 +16,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from bd_api.middle import logger
+
 from bd_api.middlewares.sa_tables import Subscription, subscriber, User
 from utils.date_moscow import get_current_date
 from utils.text_message import send_message
 
 scheduler = AsyncIOScheduler()
-
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 # async def update_subscription_status(db_session: AsyncSession, user_id: int, new_status: str):
@@ -108,7 +109,7 @@ async def notify_expiring_subscriptions(db_session: AsyncSession, bot):
                 bot=bot,
                 chat_id=subscription.user_id,
                 text=f"⛓️‍💥 Ваша подписка завершилась ({markdown.hpre(subscription.end_date)})."
-                     f" Пожалуйста, продлите её, чтобы снова пользоваться нашими услугами.")
+                     f" Пожалуйста, продлите её, чтобы снова пользоваться AMMO VPN.")
             await db_session.commit()
 
     except Exception as e:

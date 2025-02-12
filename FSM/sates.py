@@ -11,4 +11,7 @@ class Admin(StatesGroup):
     admin = State()
     rassilka = State()
     chek_rassilka = State()
-    edit_text = State()
+
+    file = State()
+    check_file = State()
+

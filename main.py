@@ -44,7 +44,6 @@ async def lifespan(app: FastAPI, db_session: AsyncSession):
     await bot.session.close()
 
 app.lifespan = lifespan
-print(webhook_fn['WEBHOOK_URL_RAILWAY'])
 
 @app.post('/webhook')
 async def bot_webhook(request: Request):

@@ -388,6 +388,6 @@ async def purchase_Support(call: CallbackQuery):
     await call.answer()
     await call.message.answer(
         text=markdown.text(
-            f'💬Если у вас возникли вопросы, смело обращайтесь в поддержку AMMO VPN - {markdown.hlink("SupportAmmo", url="https://t.me/ammosupport")}\n\n',
+            f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink("AMMO VPN", url="https://t.me/ammosupport")}\n\n',
         ),
         reply_markup=return_kb_support())
