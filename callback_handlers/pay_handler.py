@@ -141,7 +141,7 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
         name, id_img, sub = await send_crcode(call, db_session, user_id)
 
         if not sub:
-            await call.message.answer("Подписка не найдена.")
+            logger.error("Подписка не найдена.")
             return
 
         start = 0
@@ -156,11 +156,11 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
                 text=
                 f'Ебать фотки закончились, чел оплатил а их нет напиши {username} если нет то,\n'
                 f'его {markdown.hlink(f"{link}", f"tg://user?id={user_id}")}\n'
-                f'Он оплатил на {markdown.hbold(month)} месяц(-а) в {end}'
+                f'Он оплатил на {markdown.hbold(month)} месяц(-а) в {get_current_date(True)}'
             )
             return
 
-
+        await call.answer(f'Подписка продлена до: {markdown.hbold(end)}')
         await call.message.bot.send_message(
             chat_id=admin_id,
             text=
@@ -170,7 +170,7 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
             f'user_id: {user_id}\n'
             f'id QR-кода: {name}\n\n'
             f"{markdown.hbold('Время')}:\n"
-            f"Когда прошел первый платеж: {start}\n"
+            f"Когда прошел платеж: {start}\n"
             f"Истекает: {end}\n"
         )
         logger.info(

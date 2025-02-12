@@ -21,4 +21,4 @@ async def samples_(texts: list):
         line = t * (len(text) // 2)
         result.append(f'{text}\n{line}')
     print("t:",texts, "result:", result)
-    return "\n\n".join(result
+    return "\n\n".join(result)
