@@ -344,13 +344,13 @@ async def status_command(message: Message, db_session: AsyncSession):
     chat_id = message.from_user.id
     result = await db_session.execute(select(Subscription).where(Subscription.user_id == chat_id).order_by(Subscription.end_date.desc()))
     subscription = result.scalars().first()
-    l = [
-        "📄 Информация о вашей подписке:",
-        f"🗓 Последняя проведенная оплата: {markdown.hcode(subscription.start_date)}",
-        f"📅 Дата окончания: {markdown.hcode(subscription.end_date)}",
-        f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'не активный')}"]
 
     if subscription:
+        l = [
+            "📄 Информация о вашей подписке:",
+            f"🗓 Последняя проведенная оплата: {markdown.hcode(subscription.start_date)}",
+            f"📅 Дата окончания: {markdown.hcode(subscription.end_date)}",
+            f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'не активный')}"]
         await message.answer(
             await samples_(l)
         )
