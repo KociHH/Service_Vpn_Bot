@@ -78,7 +78,7 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
                 reply_markup=markup
             )
 
-            await state.update_data(actions=callback_data.action, action_count=0,  count_payment=0, month=int(month))
+            await state.update_data(actions=callback_data.action, month=int(month))
 
         else:
             await call.answer("Неизвестная команда.")
@@ -90,20 +90,19 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
             "Пожалуйста, попробуйте позже."
         )
 
-
+counting = 0
 @router.callback_query(lambda i: i.data.startswith('test_check_'))
 async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSession, state: FSMContext):
+    global counting
     user_id = call.from_user.id
     username = f"@{call.from_user.username}"
 
     data = await state.get_data()
     month = data.get("month")
-    counting = data.get("count_payment", 0)
 
     if counting > 0:
-        await call.message.answer(
-            '✅ Вы уже совершили оплату, ожидайте ответ от администрации.\n'
-            'Или обратитесь в поддержку - @ammosupport')
+        await call.answer(
+            '✅ Вы уже совершили оплату, ожидайте ответ от администрации.\n')
         return
 
     if month is None:
@@ -138,6 +137,7 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
 
         await call.message.answer("✅ Оплата прошла успешно!")
         await asyncio.sleep(0.5)
+        counting += 1
         name, id_img, sub = await send_crcode(call, db_session, user_id)
 
         if not sub:
@@ -156,11 +156,11 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
                 text=
                 f'Ебать фотки закончились, чел оплатил а их нет напиши {username} если нет то,\n'
                 f'его {markdown.hlink(f"{link}", f"tg://user?id={user_id}")}\n'
-                f'Он оплатил на {markdown.hbold(month)} месяц(-а) в {get_current_date(True)}'
+                f'Он оплатил на {markdown.hbold(month)} месяц(-а)'
             )
             return
 
-        await call.answer(f'Подписка продлена до: {markdown.hcode(end)}')
+        # await call.answer(f'Подписка продлена до: {markdown.hcode(end)}')
         await call.message.bot.send_message(
             chat_id=admin_id,
             text=

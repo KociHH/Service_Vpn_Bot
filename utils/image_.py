@@ -163,10 +163,19 @@ async def send_crcode(message, db_session: AsyncSession, user_id: int):
             image_file = BufferedInputFile(image_stream, filename="AMMO_VPN.jpg")
 
             text = markdown.text(
-                f"{markdown.hbold('I Установите WireGuard, сайт для скачивания -')}"
-                f"{markdown.hlink('WireGuard',  'https://www.wireguard.com/install/')}\n\n"
-                f"{markdown.hbold('II Отсканируйте или загрузите QR-Code')}\n\n"
-                f"{markdown.hbold('III Добавьте туннель')}")
+                f"Инструкция:\n\n"
+
+                "I Установите WireGuard\n"
+                "ссылка на сайт для скачивания - https://www.wireguard.com/install/\n"
+                "II Войдя в WireGuard нажмите на '+' и сканируйте QR-код, который Вам выдал бот\n\n"
+
+                "I Не делитесь своими данными VPN с посторонними\n"
+                "II Не используйте 1 приобретенный ключ на разных устройствах,\n"
+                "лучше приобрести новый vpn для другого устройства\n"
+                "III Не забывайте выходить из VPN, когда он вам не нужен\n\n"
+
+                "Желаем Вам приятного использования AMMO VPN!",
+            )
 
             await message.message.answer_photo(
                 photo=image_file,
