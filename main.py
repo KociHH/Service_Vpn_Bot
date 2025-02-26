@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import settings
 from bd_api.middle import DatabaseMiddleware, async_session
+from bd_api.middlewares.sa_tables import create_tables
 from settings import Config, load_path
 from aiogram.client.bot import DefaultBotProperties
 from commands import router as commands_router
@@ -43,7 +44,8 @@ async def lifespan(app: FastAPI, bot: Bot, db_session: AsyncSession):
     webhook_info = await bot.get_webhook_info()
     if webhook_info.url != webhook_fn['WEBHOOK_URL_RAILWAY']:
         await bot.set_webhook(webhook_fn['WEBHOOK_URL_RAILWAY'])
-    asyncio.create_task(start_scheduler(bot, db_session))
+        await create_tables()
+        asyncio.create_task(start_scheduler(bot, db_session))
 
     yield
     await bot.delete_webhook()
