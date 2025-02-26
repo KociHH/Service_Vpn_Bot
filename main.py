@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI, bot: Bot, db_session: AsyncSession):
 app.lifespan = lifespan
 
 @app.post('/webhook')
-async def bot_webhook(request: Request, db_session: AsyncSession = Depends(get_session)):
+async def bot_webhook(request: Request):
     data = await request.json()
     update = Update(**data)
     await dp.feed_update(bot, update)
