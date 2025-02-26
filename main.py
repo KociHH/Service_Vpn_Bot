@@ -39,10 +39,12 @@ async def get_session() -> AsyncSession:
         yield session
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI, bot: Bot, db_session: AsyncSession):
     webhook_info = await bot.get_webhook_info()
     if webhook_info.url != webhook_fn['WEBHOOK_URL_RAILWAY']:
         await bot.set_webhook(webhook_fn['WEBHOOK_URL_RAILWAY'])
+    asyncio.create_task(start_scheduler(bot, db_session))
+
     yield
     await bot.delete_webhook()
     await bot.session.close()
@@ -53,8 +55,6 @@ app.lifespan = lifespan
 async def bot_webhook(request: Request, db_session: AsyncSession = Depends(get_session)):
     data = await request.json()
     update = Update(**data)
-
-    await start_scheduler(bot, db_session)
     await dp.feed_update(bot, update)
     return {'status': 'ok'}
 

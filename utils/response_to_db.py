@@ -10,7 +10,7 @@ from typing import Union
 import pytz
 from aiogram.types import CallbackQuery
 from aiogram.utils import markdown
-from apscheduler.events import EVENT_JOB_EXECUTED
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from dotenv import load_dotenv
@@ -101,6 +101,12 @@ async def notify_expiring_subscriptions(db_session: AsyncSession, bot):
         logger.error(f"Ошибка при проверке истекших подписок: {e}")
 
 
+def job_listener(event):
+    if event.exception:
+        logger.error(f"Задача {event.job_id} завершилась с ошибкой: {event.exception}")
+    else:
+        logger.info(f"Задача {event.job_id} выполнена успешно в {event.scheduled_run_time}")
+
 async def start_scheduler(bot, db_session: AsyncSession):
     scheduler.add_job(
         notify_expiring_subscriptions,
@@ -110,6 +116,6 @@ async def start_scheduler(bot, db_session: AsyncSession):
         args=[db_session, bot],
         misfire_grace_time=3600
     )
-    scheduler.add_listener(lambda event: logging.info(f"Job event: {event}"), EVENT_JOB_EXECUTED)
+    scheduler.add_listener(job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()
     logger.info("Планировщик запущен.")
