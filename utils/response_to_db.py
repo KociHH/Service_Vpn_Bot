@@ -4,6 +4,7 @@ import os
 
 from datetime import datetime, timedelta
 from mailbox import Message
+from time import timezone
 from typing import Union
 
 import pytz
@@ -28,7 +29,7 @@ scheduler = AsyncIOScheduler()
 logger = logging.getLogger(__name__)
 load_dotenv()
 
-scheduler.add_listener(lambda event: logging.info(f"Job event: {event}"), EVENT_JOB_EXECUTED)
+
 admin_id = os.getenv('ADMIN_ID')
 async def notify_expiring_subscriptions(db_session: AsyncSession, bot):
     current_date = get_current_date(True)
@@ -103,8 +104,12 @@ async def notify_expiring_subscriptions(db_session: AsyncSession, bot):
 async def start_scheduler(bot, db_session: AsyncSession):
     scheduler.add_job(
         notify_expiring_subscriptions,
-        IntervalTrigger(hours=12),
+        trigger='cron',
+        hour='9, 21',
+        timezone=pytz.timezone('Europe/Moscow'),
         args=[db_session, bot],
         misfire_grace_time=3600
     )
+    scheduler.add_listener(lambda event: logging.info(f"Job event: {event}"), EVENT_JOB_EXECUTED)
     scheduler.start()
+    logger.info("Планировщик запущен.")

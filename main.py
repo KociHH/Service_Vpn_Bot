@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from aiogram import Dispatcher, Router, Bot
 import logging
 from aiogram.enums import ParseMode
@@ -34,13 +34,15 @@ logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 
+async def get_session() -> AsyncSession:
+    async with async_session() as session:
+        yield session
 
 @asynccontextmanager
-async def lifespan(app: FastAPI, db_session: AsyncSession):
+async def lifespan(app: FastAPI):
     webhook_info = await bot.get_webhook_info()
     if webhook_info.url != webhook_fn['WEBHOOK_URL_RAILWAY']:
         await bot.set_webhook(webhook_fn['WEBHOOK_URL_RAILWAY'])
-        await start_scheduler(bot, db_session)
     yield
     await bot.delete_webhook()
     await bot.session.close()
@@ -48,10 +50,11 @@ async def lifespan(app: FastAPI, db_session: AsyncSession):
 app.lifespan = lifespan
 
 @app.post('/webhook')
-async def bot_webhook(request: Request):
+async def bot_webhook(request: Request, db_session: AsyncSession = Depends(get_session)):
     data = await request.json()
     update = Update(**data)
 
+    await start_scheduler(bot, db_session)
     await dp.feed_update(bot, update)
     return {'status': 'ok'}
 
