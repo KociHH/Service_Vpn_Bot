@@ -42,7 +42,7 @@ class Subscription(Base):
 
 
 class UserUpdater:
-    def __init__(self, user: User, new_data: dict):
+    def __init__(self, user: User | Subscription, new_data: dict):
         self.user = user
         self.new_data = new_data
 
