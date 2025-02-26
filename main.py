@@ -1,5 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from aiogram import Dispatcher, Router, Bot
 import logging
@@ -18,7 +20,7 @@ from commands import router as commands_router
 from utils.response_to_db import start_scheduler
 
 router = Router(name=__name__)
-
+logger = logging.getLogger(__name__)
 
 webhook_fn = settings.WEBHOOK()
 config: Config = load_path()

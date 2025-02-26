@@ -9,11 +9,13 @@ from typing import Union
 import pytz
 from aiogram.types import CallbackQuery
 from aiogram.utils import markdown
+from apscheduler.events import EVENT_JOB_EXECUTED
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 from dotenv import load_dotenv
 from humanfriendly.terminal import message
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -26,9 +28,13 @@ scheduler = AsyncIOScheduler()
 logger = logging.getLogger(__name__)
 load_dotenv()
 
+scheduler.add_listener(lambda event: logging.info(f"Job event: {event}"), EVENT_JOB_EXECUTED)
 admin_id = os.getenv('ADMIN_ID')
 async def notify_expiring_subscriptions(db_session: AsyncSession, bot):
     current_date = get_current_date(True)
+    logger.info(f"Проверка подписок...\n"
+                f" Время: {current_date}"
+                )
     print(current_date)
     target_date = current_date + timedelta(days=3)
 
@@ -73,16 +79,11 @@ async def notify_expiring_subscriptions(db_session: AsyncSession, bot):
                     bot=bot
                 )
 
-                update = UserUpdater(
-                    subscription,
-                    {
-                        'month': None,
-                        'start_date': None,
-                        'end_date': None,
-                        'status': "not active"
-                    }
+                await db_session.execute(
+                    delete(Subscription).where(Subscription.user_id == subscription.user_id)
                 )
-                await update.save_to_db(db_session)
+                await db_session.commit()
+                logger.info('Истекшая подписка удалена.')
 
                 await send_message(
                     bot=bot,
@@ -100,5 +101,10 @@ async def notify_expiring_subscriptions(db_session: AsyncSession, bot):
 
 
 async def start_scheduler(bot, db_session: AsyncSession):
-    scheduler.add_job(notify_expiring_subscriptions, 'cron', hour=12, minute=0, args=[db_session, bot])
+    scheduler.add_job(
+        notify_expiring_subscriptions,
+        IntervalTrigger(hours=12),
+        args=[db_session, bot],
+        misfire_grace_time=3600
+    )
     scheduler.start()

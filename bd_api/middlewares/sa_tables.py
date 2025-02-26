@@ -98,9 +98,6 @@ class subscriber():
                 Subscription.end_date >= current_date
             )
         )
-        if not result:
-            logger.error(f"Ошибка в блоке проверки оплаты sa_tables")
-
         existing_subscription = result.scalars().first()
 
         if existing_subscription and existing_subscription.end_date >= current_date:
