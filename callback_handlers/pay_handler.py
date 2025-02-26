@@ -66,7 +66,6 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
 
             price, month, description = subscription.change_month_price()
             markup = await subscription.oplatas(call.message, db_session)
-            print(month)
 
 
             await call.answer()

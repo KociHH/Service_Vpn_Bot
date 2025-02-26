@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import logging
 import os
 from dataclasses import dataclass
 from typing import Optional
@@ -7,7 +9,7 @@ from pydantic import AnyUrl
 from pydantic_settings import SettingsConfigDict, BaseSettings
 from environs import Env
 
-
+logger = logging.getLogger(__name__)
 DEFAULT_EMAIL = "example@example.com"
 
 
@@ -101,7 +103,7 @@ def SQlpg(path: Optional[str] = None) -> str:
 
     return postgres_url
 
-print(SQlpg())
+logger.info(SQlpg())
 
 # railway
 def SQL_URL(path: str | None = None) -> str:
@@ -113,4 +115,4 @@ def SQL_URL(path: str | None = None) -> str:
 
     return env('DATABASE_URL_PUBLIC')
 
-print(SQL_URL())
+logger.info(SQL_URL())
