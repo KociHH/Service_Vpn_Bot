@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-
+import uvicorn
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, Depends
 from aiogram import Dispatcher, Router, Bot
@@ -46,7 +46,6 @@ def create_lifespan(bot: Bot, db_session: AsyncSession):
         if webhook_info.url != webhook_fn['WEBHOOK_URL_RAILWAY']:
             logger.info("Bot started...")
             await bot.set_webhook(webhook_fn['WEBHOOK_URL_RAILWAY'])
-            await create_tables()
         asyncio.create_task(start_scheduler(bot, db_session, scheduler))
 
         yield
@@ -58,6 +57,11 @@ def create_lifespan(bot: Bot, db_session: AsyncSession):
 
 app = FastAPI(lifespan=create_lifespan(bot, async_session))
 
+app.get('/webhook/render')
+async def render_webhook():
+    logger.info("Webhook is rendered")
+    return {'status': 'ok'}
+
 @app.post('/webhook')
 async def bot_webhook(request: Request):
     data = await request.json()
@@ -67,6 +71,6 @@ async def bot_webhook(request: Request):
 
 
 if __name__ == "__main__":
-    import uvicorn
+    asyncio.run(create_tables())
     uvicorn.run(app, host=webhook_fn['HOST_RAILWAY'], port=webhook_fn['PORT_RAILWAY'])
 
