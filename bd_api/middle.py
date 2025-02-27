@@ -2,7 +2,7 @@
 import asyncio
 import logging
 
-from settings import SQlpg, SQL_URL
+from settings import SQl_localhost, SQL_URL
 from aiogram import BaseMiddleware
 from sqlalchemy import select, pool
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -12,8 +12,8 @@ from aiogram.types import TelegramObject, CallbackQuery, Message, ReplyKeyboardR
 
 logger = logging.getLogger(__name__)
 
-
-engine = create_async_engine(SQL_URL(), future=True, echo=False, poolclass=pool.NullPool, connect_args={"ssl": "require"})
+sql_data = SQL_URL()
+engine = create_async_engine(sql_data.get('DATABASE_URL_PUBLIC_RENDER'), future=True, echo=False, poolclass=pool.NullPool, connect_args={"ssl": "require"})
 async_session = async_sessionmaker(engine, expire_on_commit=False,  class_=AsyncSession)
 
 

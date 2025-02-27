@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 
 from pydantic import AnyUrl
 from pydantic_settings import SettingsConfigDict, BaseSettings
@@ -17,7 +17,6 @@ DEFAULT_EMAIL = "example@example.com"
 class client:
     Api_id: int
     Api_key: str
-
 
 
 class YookassaToken:
@@ -72,7 +71,7 @@ def Admins(path: int | None = None) -> set[int]:
     return admin_ids
 
 
-def WEBHOOK(path: str | None = None):
+def WEBHOOK(path: str | None = None) -> dict[str, Any]:
     env: Env = Env()
     env.read_env(path)
 
@@ -82,15 +81,20 @@ def WEBHOOK(path: str | None = None):
         'WEBHOOK_URL': env('WEBHOOK_URL'),
         'WEBHOOK_PATH': env('WEBHOOK_PATH'),
 
-
+        'WEBHOOK_URL_RENDER': env('WEBHOOK_URL_RENDER'),
         "WEBHOOK_URL_RAILWAY": env('WEBHOOK_URL_RAILWAY'),
+
+        # uvicorn --port --host
+        'HOST_RENDER': env('HOST_RENDER'),
+        'PORT_RENDER': env.int('PORT_RENDER'),
+
         "HOST_RAILWAY": env('HOST_RAILWAY'),
         "PORT_RAILWAY": env.int('PORT_RAILWAY'),
     }
     return settings
 
 # localhost
-def SQlpg(path: Optional[str] = None) -> str:
+def SQl_localhost(path: Optional[str] = None) -> str:
     env: Env = Env()
     env.read_env(path)
 
@@ -103,16 +107,20 @@ def SQlpg(path: Optional[str] = None) -> str:
 
     return postgres_url
 
-logger.info(SQlpg())
+logger.info(SQl_localhost())
 
 # railway
-def SQL_URL(path: str | None = None) -> str:
+def SQL_URL(path: str | None = None) -> dict[str, AnyUrl | str]:
     env = Env()
     if path:
         env.read_env(path)
     else:
         env.read_env()
 
-    return env('DATABASE_URL_PUBLIC')
+    urls_base = {
+        "DATABASE_URL_PUBLIC": env('DATABASE_URL_PUBLIC'),
+        "DATABASE_URL_PUBLIC_RENDER": env('DATABASE_URL_PUBLIC_RENDER'),
+    }
 
+    return urls_base
 logger.info(SQL_URL())
