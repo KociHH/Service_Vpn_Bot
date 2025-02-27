@@ -57,7 +57,7 @@ def create_lifespan(bot: Bot, db_session: AsyncSession):
 
 app = FastAPI(lifespan=create_lifespan(bot, async_session))
 
-app.get('/webhook/render')
+@app.get('/render')
 async def render_webhook():
     logger.info("Webhook is rendered")
     return {'status': 'ok'}
