@@ -21,7 +21,7 @@ from FSM.validators_and_def import check_email, process_callback_data
 from bd_api.middle import logger
 from bd_api.middlewares.sa_tables import User, UserUpdater
 from keyboards.inline_keyboard.main_inline_keyboard import Main, MainCD, Main_menu, Month_kb, return_kb_support, \
-    MonthCD, Month, info2, info, info3
+    MonthCD, Month, info2, info, info3, info_price_249, info_price_579, info_price_979
 from keyboards.inline_keyboard.pay_inline_keyboard import Cash_Bt_Two, Cash_Bt_Tree, Cash_Bt
 from keyboards.reply_keyboard.state_reply import build_net_keyboard
 from settings import DEFAULT_EMAIL
@@ -340,20 +340,20 @@ async def purchase(call: CallbackQuery):
     await call.answer()
     await call.message.edit_text(
         text=markdown.text(
-            '⏳VPN 1 месяц\n'
+            f'⏳VPN {info.month} месяц\n'
             'Описание:\n'
-            'Цена: 179 ₽\n'
-            'Кол-во устройств: 1\n\n'
+            f'Цена: {info_price_249}\n'
+            f'Кол-во устройств: {info.us}\n\n'
 
-            '⛓️VPN 2 месяца\n'
+            f'⛓️VPN {info2.month} месяца\n'
             'Описание:\n'
-            'Цена: 329 ₽\n'
-            'Кол-во устройств: 1\n\n'
+            f'Цена: {info_price_579}\n'
+            f'Кол-во устройств: {info2.us}\n\n'
 
-            '🌪️VPN 3 месяца\n'
+            f'🌪️VPN {info3.month} месяца\n'
             'Описание:\n'
-            'Цена: 449 ₽\n'
-            'Кол-во устройств: 1''⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
+            f'Цена: {info_price_979}\n'
+            f'Кол-во устройств: {info3.us}''⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
             sep='\n'
         ),
         reply_markup=Month_kb()

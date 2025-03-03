@@ -13,7 +13,7 @@ from aiogram.types import TelegramObject, CallbackQuery, Message, ReplyKeyboardR
 logger = logging.getLogger(__name__)
 
 sql_data = SQL_URL()
-engine = create_async_engine(sql_data.get('DATABASE_URL_PUBLIC_RENDER'), future=True, echo=False, poolclass=pool.NullPool, connect_args={"ssl": "require"})
+engine = create_async_engine(sql_data.get('DATABASE_URL_PUBLIC_TIMEWEB'), future=True, echo=False, poolclass=pool.NullPool, connect_args={"ssl": "require"})
 async_session = async_sessionmaker(engine, expire_on_commit=False,  class_=AsyncSession)
 
 

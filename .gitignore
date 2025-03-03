@@ -7,3 +7,4 @@ __pycache__/
 img/
 test_file.py
 .env
+cloud.ini

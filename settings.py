@@ -120,6 +120,7 @@ def SQL_URL(path: str | None = None) -> dict[str, AnyUrl | str]:
     urls_base = {
         "DATABASE_URL_PUBLIC": env('DATABASE_URL_PUBLIC'),
         "DATABASE_URL_PUBLIC_RENDER": env('DATABASE_URL_PUBLIC_RENDER'),
+        'DATABASE_URL_PUBLIC_TIMEWEB': env('DATABASE_URL_PUBLIC_TIMEWEB'),
     }
 
     return urls_base

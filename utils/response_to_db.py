@@ -3,6 +3,7 @@ import logging
 import os
 
 from datetime import datetime, timedelta
+from logging import Logger
 from mailbox import Message
 from time import timezone
 from typing import Union
@@ -58,7 +59,8 @@ async def notify_expiring_subscriptions(db_session_factory, bot):
                         f"⏰ Ваша подписка истекает через 3 дня ({markdown.hpre(subscription.end_date)}).\n"
                     f"Пожалуйста, продлите её, чтобы продолжать пользоваться сервисом."
                       )
-                 )
+                )
+                logger.info(f"У пользователя {'Неизвестный пользователь' if full_name == '' or '⠀' else full_name} заканчивается подписка через 3 дня.")
                 await asyncio.sleep(0.5)
 
         except Exception as e:
@@ -85,6 +87,7 @@ async def notify_expiring_subscriptions(db_session_factory, bot):
                         delete(Subscription).where(Subscription.user_id == subscription.user_id)
                     )
                 await db_session.commit()
+                logger.info(f"У пользователя {'Неизвестный пользователь' if full_name == '' or '⠀' else full_name} закончилась подписка.")
                 logger.info('Истекшая подписка удалена.')
 
                 await send_message(
