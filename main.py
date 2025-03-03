@@ -43,9 +43,9 @@ def create_lifespan(bot: Bot, db_session: AsyncSession):
     async def lifespan(app: FastAPI):
         scheduler = return_scheduler()
         webhook_info = await bot.get_webhook_info()
-        if webhook_info.url != webhook_fn['WEBHOOK_URL_RENDER']:
+        if webhook_info.url != webhook_fn['WEBHOOK_PATH_TIMEWEB']:
             logger.info("Bot started...")
-            await bot.set_webhook(webhook_fn['WEBHOOK_URL_RENDER'])
+            await bot.set_webhook(webhook_fn['WEBHOOK_PATH_TIMEWEB'])
         asyncio.create_task(start_scheduler(bot, db_session, scheduler))
 
         yield
@@ -67,5 +67,5 @@ async def bot_webhook(request: Request):
 
 if __name__ == "__main__":
     asyncio.run(create_tables())
-    uvicorn.run(app, host=webhook_fn['HOST_RENDER'], port=webhook_fn['PORT_RENDER'])
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 

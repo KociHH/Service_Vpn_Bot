@@ -80,7 +80,7 @@ def WEBHOOK(path: str | None = None) -> dict[str, Any]:
         'host': env('HOST'),
         'WEBHOOK_URL': env('WEBHOOK_URL'),
         'WEBHOOK_PATH': env('WEBHOOK_PATH'),
-
+        'WEBHOOK_PATH_TIMEWEB': env('WEBHOOK_PATH_TIMEWEB'),
         'WEBHOOK_URL_RENDER': env('WEBHOOK_URL_RENDER'),
         "WEBHOOK_URL_RAILWAY": env('WEBHOOK_URL_RAILWAY'),
 
