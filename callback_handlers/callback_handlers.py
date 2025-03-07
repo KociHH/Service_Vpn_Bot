@@ -342,17 +342,17 @@ async def purchase(call: CallbackQuery):
         text=markdown.text(
             f'⏳VPN {info.month} месяц\n'
             'Описание:\n'
-            f'Цена: {info_price_249}\n'
+            f'Цена: {info.price}\n'
             f'Кол-во устройств: {info.us}\n\n'
 
-            f'⛓️VPN {info2.month} месяца\n'
+            f'⛓️VPN {info2.price} месяца\n'
             'Описание:\n'
-            f'Цена: {info_price_579}\n'
+            f'Цена: {info2.price}\n'
             f'Кол-во устройств: {info2.us}\n\n'
 
             f'🌪️VPN {info3.month} месяца\n'
             'Описание:\n'
-            f'Цена: {info_price_979}\n'
+            f'Цена: {info3.price}\n'
             f'Кол-во устройств: {info3.us}''⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
             sep='\n'
         ),
