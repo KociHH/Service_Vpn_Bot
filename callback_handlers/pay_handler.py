@@ -77,7 +77,7 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
                 reply_markup=markup
             )
 
-            await state.update_data(actions=callback_data.action, month=int(month))
+            await state.update_data(actions=callback_data.action, month=int(month), counting=int(0))
 
         else:
             await call.answer("Неизвестная команда.")
@@ -89,15 +89,14 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
             "Пожалуйста, попробуйте позже."
         )
 
-counting = 0
 @router.callback_query(lambda i: i.data.startswith('test_check_'))
 async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSession, state: FSMContext):
-    global counting
     user_id = call.from_user.id
     username = f"@{call.from_user.username}"
 
     data = await state.get_data()
     month = data.get("month")
+    counting = data.get("counting", 0)
 
     if counting > 0:
         await call.answer(
@@ -137,6 +136,7 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
         await call.message.answer("✅ Оплата прошла успешно!")
         await asyncio.sleep(0.5)
         counting += 1
+        await state.update_data(counting=counting)
         name, id_img, sub = await send_crcode(call, db_session, user_id)
 
         if not sub:

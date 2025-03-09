@@ -35,7 +35,7 @@ class MainCD(CallbackData, prefix='main'):
 
 
 class Price_and_us_and:
-    def __init__(self, price: float | str , month: int, us: int = 1, description: str = None):
+    def __init__(self, price: float | str , month: int, us: int | str = '∞', description: str = None):
         self.description = description
         self.price = price
         self.us = us
@@ -45,16 +45,16 @@ class Price_and_us_and:
         return str(self.price)
 # 31 марта
 # info = Price_and_us_and(price=249.00, month=1, description='AMMO VPN на 1 месяц')
-# info2 = Price_and_us_and(price=579.00, month=2, description='AMMO VPN на 2 месяца')
-# info3 = Price_and_us_and(price=979.00, month=3, description='AMMO VPN на 3 месяца')
+# info2 = Price_and_us_and(price=579.00, month=3, description='AMMO VPN на 2 месяца')
+# info3 = Price_and_us_and(price=979.00, month=9, description='AMMO VPN на 3 месяца')
 
 info = Price_and_us_and(price=179.0, month=1, description='AMMO VPN на 1 месяц')
 info2 = Price_and_us_and(price=329.0, month=2, description='AMMO VPN на 2 месяца')
 info3 = Price_and_us_and(price=449.0, month=3, description='AMMO VPN на 3 месяца')
 
 info_price_249 = Price_and_us_and('249₽ (-11%)', 1).price_in_bot()
-info_price_579 = Price_and_us_and('579₽ (-23%)', 2).price_in_bot()
-info_price_979 = Price_and_us_and('979₽ (-35%)', 3).price_in_bot()
+info_price_579 = Price_and_us_and('579₽ (-23%)', 3).price_in_bot()
+info_price_979 = Price_and_us_and('979₽ (-35%)', 9).price_in_bot()
 
 def Main_menu() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
