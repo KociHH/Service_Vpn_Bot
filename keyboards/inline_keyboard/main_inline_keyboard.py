@@ -41,16 +41,13 @@ class Price_and_us_and:
         self.us = us
         self.month = month
 
-    def price_in_bot(self) -> str:
-        return str(self.price)
-# 31 марта
 info = Price_and_us_and(price=249.00, month=1, description='AMMO VPN на 1 месяц')
 info2 = Price_and_us_and(price=579.00, month=3, description='AMMO VPN на 3 месяца')
-info3 = Price_and_us_and(price=979.00, month=9, description='AMMO VPN на 9 месяца')
+info3 = Price_and_us_and(price=979.00, month=6, description='AMMO VPN на 6 месяцев')
 
-info_price_249 = Price_and_us_and('249₽ (-11%)', 1).price_in_bot()
-info_price_579 = Price_and_us_and('579₽ (-23%)', 3).price_in_bot()
-info_price_979 = Price_and_us_and('979₽ (-35%)', 9).price_in_bot()
+info_price_249 = Price_and_us_and('249₽ (-11%)', 1)
+info_price_579 = Price_and_us_and('579₽ (-23%)', 3)
+info_price_979 = Price_and_us_and('979₽ (-35%)', 6)
 
 def Main_menu() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -80,10 +77,10 @@ def Month_kb() -> InlineKeyboardMarkup:
         text='1 месяц',
         callback_data=MonthCD(action=Month.One_month).pack())
     builder.button(
-        text='2 месяца',
+        text='3 месяца',
         callback_data=MonthCD(action=Month.Two_month).pack())
     builder.button(
-        text='3 месяца',
+        text='6 месяцев',
         callback_data=MonthCD(action=Month.Tree_month).pack())
     builder.button(
         text='⬅️ Назад',

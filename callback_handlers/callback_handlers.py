@@ -41,7 +41,7 @@ text_answer_two = markdown.text(
     '⚙️Всë необходимое будет предоставлено после приобретения', sep='\n')
 
 text_answer_tree = markdown.text(
-    f'🗝VPN на {info3.month} месяца\n\n'
+    f'🗝VPN на {info3.month} месяцев\n\n'
     f'📄Цена: {info3.price} ₽\n\n'
     f'👤Кол-во устройств: ∞\n\n'
     '⚙️Всë необходимое будет предоставлено после приобретения', sep='\n')
@@ -344,12 +344,12 @@ async def purchase(call: CallbackQuery):
             f'Цена: {info_price_249.price}\n'
             f'Кол-во устройств: ∞\n\n'
 
-            f'⛓️VPN {info_price_579.price} месяца\n'
+            f'⛓️VPN {info_price_579.month} месяца\n'
             'Описание:\n'
             f'Цена: {info_price_579.price}\n'
             f'Кол-во устройств: ∞\n\n'
 
-            f'🌪️VPN {info_price_979.month} месяца\n'
+            f'🌪️VPN {info_price_979.month} месяцев\n'
             'Описание:\n'
             f'Цена: {info_price_979.price}\n'
             f'Кол-во устройств: ∞''⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',

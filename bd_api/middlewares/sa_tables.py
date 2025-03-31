@@ -76,8 +76,8 @@ class subscriber():
                 return 30
             elif month == 3:
                 return 90
-            elif month == 9:
-                return 270
+            elif month == 6:
+                return 180
             else:
                 raise ValueError("Неизвестное значение месяца.")
         except Exception as e:
