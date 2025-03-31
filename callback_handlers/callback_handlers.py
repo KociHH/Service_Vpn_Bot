@@ -339,19 +339,19 @@ async def purchase(call: CallbackQuery):
     await call.answer()
     await call.message.edit_text(
         text=markdown.text(
-            f'⏳VPN {info.month} месяц\n'
+            f'⏳VPN {info_price_249.month} месяц\n'
             'Описание:\n'
-            f'Цена: {info.price}\n'
+            f'Цена: {info_price_249.price}\n'
             f'Кол-во устройств: ∞\n\n'
 
-            f'⛓️VPN {info2.price} месяца\n'
+            f'⛓️VPN {info_price_579.price} месяца\n'
             'Описание:\n'
-            f'Цена: {info2.price}\n'
+            f'Цена: {info_price_579.price}\n'
             f'Кол-во устройств: ∞\n\n'
 
-            f'🌪️VPN {info3.month} месяца\n'
+            f'🌪️VPN {info_price_979.month} месяца\n'
             'Описание:\n'
-            f'Цена: {info3.price}\n'
+            f'Цена: {info_price_979.price}\n'
             f'Кол-во устройств: ∞''⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
             sep='\n'
         ),
