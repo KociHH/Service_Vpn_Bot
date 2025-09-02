@@ -12,8 +12,8 @@ from yookassa import Configuration, Payment
 from aiogram import Router
 
 import settings
-from bd_api.middle import logger
-from bd_api.middlewares.sa_tables import subscriber, Subscription
+from db.middlewares.middle import logger
+from db.tables import subscriber, Subscription
 
 
 def configure_yookassa(true_module):
@@ -25,7 +25,7 @@ def configure_yookassa(true_module):
         Configuration.secret_key = settings.YookassaToken.Api_key
 
 
-configure_yookassa(False)
+configure_yookassa(True)
 router = Router(name=__name__)
 
 
@@ -70,7 +70,7 @@ def create_oplata(amount, chat_id, email, month, description):
     return payment.confirmation.confirmation_url, payment.id
 
 
-async def check(payment_id, db_session: AsyncSession, message_callback: Union[Message, CallbackQuery], month: int, date: int):
+async def check(payment_id, message_callback: Union[Message, CallbackQuery], month: int, date: int):
     user_id = message_callback.from_user.id
     try:
 
@@ -91,7 +91,7 @@ async def check(payment_id, db_session: AsyncSession, message_callback: Union[Me
             start_date=date,
             end_date=date,
         )
-        await subscriber_obj.date_Subscribers(db_session=db_session)
+        await subscriber_obj.date_Subscribers()
         logger.info(f"Успешно обновил подписку для пользователя: {user_id}.")
         return payment.metadata
 

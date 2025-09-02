@@ -1,8 +1,5 @@
 import traceback
-from idlelib.undo import Command
-from imaplib import Commands
 from typing import Optional, Union
-
 from aiogram import F
 from aiogram import Router
 from aiogram.enums import ChatAction
@@ -10,21 +7,16 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 from aiogram.utils import markdown
-from humanfriendly.terminal import message
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.testing.plugin.plugin_base import logging
-
-import settings
-from FSM.sates import Email
+from FSM.states import Email
 from FSM.validators_and_def import check_email, process_callback_data
-from bd_api.middle import logger
-from bd_api.middlewares.sa_tables import User, UserUpdater
-from keyboards.inline_keyboard.main_inline_keyboard import Main, MainCD, Main_menu, Month_kb, return_kb_support, \
-    MonthCD, Month, info2, info, info3, info_price_249, info_price_579, info_price_979
-from keyboards.inline_keyboard.pay_inline_keyboard import Cash_Bt_Two, Cash_Bt_Tree, Cash_Bt
+from db.middlewares.middle import logger
+from db.tables import user_dao, User
+from keyboards.inline_keyboard.main_inline_keyboard import Main, Main_menu, Month_kb, return_kb_support, \
+    Month, info2, info, info3, info_price_249, info_price_579, info_price_979, MonthCD
+from keyboards.inline_keyboard.pay_inline_keyboard import CashMultiBt, CashMenu
 from keyboards.reply_keyboard.state_reply import build_net_keyboard
-from settings import DEFAULT_EMAIL
+from settings import DEFAULT_EMAIL, BotParams
+from typing import Any
 
 router = Router()
 
@@ -57,17 +49,15 @@ text = markdown.text(
 #     return bool(re.match(r"[^@]+@[^@]+\.[^@]+", text))
 
 
-async def status_admin(db_session: AsyncSession, user_id: int) -> str:
-    admins = tuple(settings.Admins())
+async def status_admin(user_id: int) -> str:
+    user_id = str(user_id)
 
-    result = await db_session.execute(select(User.admin_status).where(User.user_id == user_id, User.user_id.in_(admins)))
-    if result.scalars().first():
+    if user_id in BotParams.admin_ids_str:
         return 'admin'
     return 'user'
 
 
 async def upsert_user(
-        db_session: AsyncSession,
         call_and_message: Union[CallbackQuery, Message],
         email: Optional[str] = None
 ):
@@ -75,54 +65,56 @@ async def upsert_user(
     name_user = call_and_message.from_user.full_name
     user_id = call_and_message.from_user.id
 
-    # Поиск существующего пользователя
-    query = await db_session.execute(select(User).where(User.user_id == user_id))
-    existing_user = query.scalar_one_or_none()
+    existing = user_dao.get_one(User.user_id == user_id)
 
-    if existing_user:
-        # Если пользователь существует, обновляем данные через UserUpdater
-        updater = UserUpdater(
-            existing_user,
+    if existing:
+        updater = user_dao.update(
+            User.user_id == user_id,
             {
                 "user_id": user_id,
                 "user_name": f"@{call_and_message.from_user.username}" if call_and_message.from_user.username else "Не указан",
                 "full_name": call_and_message.from_user.full_name or "Невидимый ник" if not call_and_message.from_user.full_name else name_user,
                 "email": email,
-                "admin_status": await status_admin(db_session, user_id),
+                "admin_status": await status_admin(user_id),
             },
         )
-        updater.update()
-        await updater.save_to_db(db_session)
+        if not updater:
+            logger.error(f"Не обновился юзер {user_id}")
+            return
 
     else:
-        # Если пользователь не найден, создаем нового
-        new_user = User(
-            user_id=user_id,
-            user_name=f"@{call_and_message.from_user.username}" if call_and_message.from_user.username else "Не указан",
-            full_name=call_and_message.from_user.full_name or "Невидимый ник" if not call_and_message.from_user.full_name else name_user,
-            email=email,
-            admin_status=await status_admin(db_session, user_id),
-        )
-        db_session.add(new_user)
+        user_create = user_dao.create({
+            "user_id": user_id,
+            "user_name": f"@{call_and_message.from_user.username}" if call_and_message.from_user.username else "Не указан",
+            "full_name": call_and_message.from_user.full_name or "Невидимый ник" if not call_and_message.from_user.full_name else name_user,
+            "email": email,
+            "admin_status": await status_admin(user_id),
+        })
+        if not user_create:
+            logger.error(f"Не создался юзер {user_id}")
+            return
+
+
+async def _prompt_for_email(call: CallbackQuery, state: FSMContext, text: str):
+    await state.set_state(Email.email)
+    await call.answer()
+    await call.message.answer(
+        text=text,
+        reply_markup=build_net_keyboard(),
+    )
+    await process_callback_data(call, state)
 
 
 @router.callback_query(MonthCD.filter())
-async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMContext):
+async def email_from(call: CallbackQuery, state: FSMContext):
     user_id = call.from_user.id
     try:
 
-        result = await db_session.execute(select(User).where(User.user_id == user_id))
-        existing_user = result.scalars().first()
+        existing_user = await user_dao.get_one(User.user_id == user_id)
 
         if existing_user:
             if existing_user.email is None:
-                await state.set_state(Email.email)
-                await call.answer()
-                await call.message.answer(
-                    text=text,
-                    reply_markup=build_net_keyboard(),
-                )
-                await process_callback_data(call, state)
+                await _prompt_for_email(call, state, text)
 
             else:
                 await call.answer()
@@ -132,25 +124,16 @@ async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMCo
 
         else:
             await upsert_user(
-                db_session=db_session,
                 call_and_message=call,
                 email=None
             )
 
-            result = await db_session.execute(select(User).where(User.user_id == user_id))
-            again_existing_user = result.scalars().first()
+            again_existing_user = await user_dao.get_one(User.user_id == user_id)
 
             if again_existing_user and again_existing_user.email is None:
-                await state.set_state(Email.email)
-                await call.answer()
-                await call.message.answer(
-                    text=text,
-                    reply_markup=build_net_keyboard(),
-                )
-                await process_callback_data(call, state)
+                await _prompt_for_email(call, state, text)
             else:
                 await call.answer('🛠 Проблемы ммм...', show_alert=True)
-
 
     except Exception as e:
         error_message = traceback.format_exc()
@@ -159,11 +142,10 @@ async def email_from(call: CallbackQuery, db_session: AsyncSession, state: FSMCo
 
 
 @router.message(StateFilter(Email.email), F.text.casefold() == 'пропустить')
-async def no_message(message: Message, db_session: AsyncSession, state: FSMContext):
+async def no_message(message: Message, state: FSMContext):
     await message.answer('Успешно!', reply_markup=ReplyKeyboardRemove())
     await state.update_data(email=DEFAULT_EMAIL)
     await upsert_user(
-        db_session=db_session,
         call_and_message=message,
         email=DEFAULT_EMAIL,
     )
@@ -174,16 +156,15 @@ async def no_message(message: Message, db_session: AsyncSession, state: FSMConte
 
 
 @router.message(StateFilter(Email.email), F.text)
-async def email_update(message: Message, state: FSMContext, db_session: AsyncSession):
+async def email_update(message: Message, state: FSMContext, ):
     email = message.text
     try:
             await message.bot.send_chat_action(
                 chat_id=message.chat.id,
                 action=ChatAction.TYPING,
             )
-            await check_email(email=email, message=message)  # Проверяем формат email
+            await check_email(email=email, message=message)
             await upsert_user(
-                db_session=db_session,
                 call_and_message=message,
                 email=email
             )
@@ -248,20 +229,27 @@ async def handle_month_subscription(call_or_message: Union[CallbackQuery, Messag
         return
 
     if action == Month.One_month:
-        await handle_one_month(call_or_message)
+        callback_data_month = CashMenu.MOVEMENT_OPLATA
     elif action == Month.Two_month:
-        await handle_two_month(call_or_message)
+        callback_data_month = CashMenu.MOVEMENT_OPLATA_TWO
     elif action == Month.Tree_month:
-        await handle_three_month(call_or_message)
+        callback_data_month = CashMenu.MOVEMENT_OPLATA_TREE
     else:
-
         if isinstance(call_or_message, CallbackQuery):
             await call_or_message.answer("Неизвестное действие.", show_alert=True)
         elif isinstance(call_or_message, Message):
             await call_or_message.answer("Неизвестное действие.")
+        return
+    
+    await handle_month(
+        call_or_message,
+        callback_data_month,
+    )
 
-
-async def handle_one_month(call_or_message: Union[CallbackQuery, Message]):
+async def handle_month(
+        call_or_message: Union[CallbackQuery, Message],
+        callback_data: Any,
+        ):
     if isinstance(call_or_message, CallbackQuery):
         await call_or_message.answer()
         message = call_or_message.message
@@ -273,56 +261,18 @@ async def handle_one_month(call_or_message: Union[CallbackQuery, Message]):
     try:
         await message.answer(
             text=text_answer_one,
-            reply_markup=Cash_Bt()
+            reply_markup=CashMultiBt(callback_data)
         )
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения: {e}")
 
 
-async def handle_two_month(call_or_message: Union[CallbackQuery, Message]):
-    if isinstance(call_or_message, CallbackQuery):
-        await call_or_message.answer()
-        message = call_or_message.message
-    elif isinstance(call_or_message, Message):
-        message = call_or_message
-    else:
-        raise ValueError("Недопустимый тип ввода. Ожидаемый запрос CallbackQuery или Message")
-
-    try:
-        await message.answer(
-            text=text_answer_two,
-            reply_markup=Cash_Bt_Two()
-        )
-    except Exception as e:
-        logger.error(f"Ошибка при отправке сообщения: {e}")
-
-
-async def handle_three_month(call_or_message: Union[CallbackQuery, Message]):
-    if isinstance(call_or_message, CallbackQuery):
-        await call_or_message.answer()
-        message = call_or_message.message
-    elif isinstance(call_or_message, Message):
-        message = call_or_message
-    else:
-        raise ValueError("Недопустимый тип ввода. Ожидаемый запрос CallbackQuery или Message")
-
-    try:
-        await message.answer(
-            text=text_answer_tree,
-            reply_markup=Cash_Bt_Tree()
-        )
-    except Exception as e:
-        logger.error(f"Ошибка при отправке сообщения: {e}")
-
-
-@router.callback_query(
-    MainCD.filter(F.action == Main.MAIN)
-)
+@router.callback_query(Main.MAIN)
 async def start(call: CallbackQuery):
 
     text = markdown.text(
         f"Здравствуйте, {call.from_user.full_name}!\n\n"
-        "🗝️ Познакомьтесь с AMMO VPN:\n",
+        f"🗝️ Познакомьтесь с {BotParams.name_project} VPN:\n",
         "🌑 I Скорость до 10 Гбит/с\n",
         "👁‍🗨 II Непрерывная маскировка IP-адреса и безопасность\n",
         "💻 III Современный интерфейс\n",
@@ -332,9 +282,7 @@ async def start(call: CallbackQuery):
     await call.message.edit_text(text, reply_markup=Main_menu())
 
 
-@router.callback_query(
-    MainCD.filter(F.action == Main.purchase)  # callback_data=MainCD(action=Main.purchase).pack()
-)
+@router.callback_query(Main.purchase)
 async def purchase(call: CallbackQuery):
     await call.answer()
     await call.message.edit_text(
@@ -359,23 +307,21 @@ async def purchase(call: CallbackQuery):
     )
 
 
-@router.callback_query(MainCD.filter(F.action == Main.advantages))
+@router.callback_query(Main.advantages)
 async def purchase_advantages(call: CallbackQuery):
     await call.answer()
     await call.message.edit_text(
         text=markdown.text(
-            "🗝️ AMMO VPN:\n\n"
+            f"🗝️ {BotParams.name_project} VPN:\n\n"
             "🌑 I Cкорость до 10 Гбит/с\n\n"
             "👁‍🗨 II Непрерывная маскировка IP-адреса и безопасность от отслеживания, перехватов и т. д.\n",
-            "💻 III Современность AMMO VPN дает WireGuard, защита и интерфейс",
+            f"💻 III Современность {BotParams.name_project} VPN дает WireGuard, защита и интерфейс",
             sep='\n'),
         reply_markup=return_kb_support(),
     )
 
 
-@router.callback_query(
-    MainCD.filter(F.action == Main.Support),  # callback_data=MainCD(action=Main.Support).pack()
-)
+@router.callback_query(Main.Support)
 async def purchase_Support(call: CallbackQuery):
     await call.answer()
     await call.message.answer(

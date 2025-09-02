@@ -4,10 +4,9 @@ from aiogram.types import Message, CallbackQuery
 from email_validator import validate_email, EmailNotValidError
 from sqlalchemy.testing.plugin.plugin_base import logging
 
-from bd_api.middle import logger
+from db.middlewares.middle import logger
 
 
-# function checking email domen
 async def check_email(email: str, message: Message | None = None):
     try:
         v = validate_email(email)
@@ -21,7 +20,6 @@ async def check_email(email: str, message: Message | None = None):
         logger.error(f'Ошибка при обработке email пользователя {message.from_user.full_name}, {email}, ошибка: {e}')
 
 
-# Saved data for callback and for message
 async def process_callback_data(call_message: Union[CallbackQuery, Message], state: FSMContext):
     if isinstance(call_message.data, str):
         try:

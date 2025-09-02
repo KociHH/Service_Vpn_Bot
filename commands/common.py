@@ -1,16 +1,6 @@
 import io
 import logging
-import os.path
-import random
-from sys import prefix
-
-import redis
-from aiohttp.web_fileresponse import content_type
-
-from settings import Config, load_path
 from aiogram import F
-from aiogram import Bot, Dispatcher, types
-from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove
 from aiogram.utils import markdown
@@ -18,42 +8,51 @@ from aiogram.filters import Command, StateFilter
 from aiogram import Router
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-
-import settings
-from FSM.sates import Admin
-from bd_api.middlewares.sa_tables import User, Subscription
+import asyncio
+from settings import BotParams
+from FSM.states import Admin
+from db.tables import User, Subscription, Images, sub_dao, user_dao
 from keyboards.inline_keyboard.main_inline_keyboard import Main_menu, return_kb_support
-from keyboards.reply_keyboard.admin_panel import admin_kb, rassilka_kb, yes_no_kb, yes_no, exit_
-from utils.image_ import save_img_to_db, image_extract, send_crcode, count_images_db
+from keyboards.reply_keyboard.admin_panel import admin_kb, main_menu_kb, yes_no_kb, yes_no, exit_
+from utils.load_image import ImageProcessing
 from utils.text_message import samples_
+from utils.other import url_support
+from db.middlewares.middle import async_session
+from kos_Htools.sql.sql_alchemy.dao import BaseDAO
+from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons
 
 router = Router()
 logger = logging.getLogger(__name__)
-# redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
-# true admin if not admin false
+image_dao = BaseDAO(Images, async_session)
+image_utils = ImageProcessing(async_session, image_dao)
+
+
 def is_admin(message: Message) -> bool:
-    return message.from_user.id in settings.Admins()
+    return message.from_user.id in BotParams.admin_ids_str
+
 
 @router.message(F.text == '⬅️ Вернуться', StateFilter("*"))
 async def back(message: Message, state: FSMContext):
     await admin(message=message, state=state)
 
-# main state if admin so admin panel
+
 @router.message(Command('admin', prefix='/'))
 async def admin(message: Message, state: FSMContext):
     await state.set_state(Admin.admin)
     if is_admin(message):
         await message.answer(
             '🔐 Вы администратор!',
-        reply_markup=rassilka_kb()
+        reply_markup=main_menu_kb()
         )
 
-@router.message(F.text == '🧠 Проверить кол-во фото в бд', StateFilter(Admin.admin))
-async def check_image(message: Message, db_session: AsyncSession):
-    await count_images_db(message, db_session)
 
-@router.message(F.text == '🛠 Загрузить файлы', StateFilter(Admin.admin))
+@router.message(F.text == MainButtons.check_images, StateFilter(Admin.admin))
+async def check_image(message: Message):
+    await image_utils.count_images_db(message)
+
+
+@router.message(F.text == MainButtons.load_files, StateFilter(Admin.admin))
 async def files(message: Message, state: FSMContext):
     await state.set_state(Admin.file)
     await message.answer(
@@ -61,7 +60,7 @@ async def files(message: Message, state: FSMContext):
              f" - Принимает только файлы формата: {markdown.hbold('.rar')} или {markdown.hbold('.zip')}.\n"
              f" - Присылайте строго по одному файлу за раз.\n"
              f" - Файл не должен содержать что то кроме изображений.\n"
-             f" - Изображения должны иметь уникальное имя.\n"
+             f" - Изображения должны различаться.\n"
              f" - Лимит на архив 10 мб",
         reply_markup=exit_()
     )
@@ -117,16 +116,21 @@ async def check_file(message: Message, state: FSMContext):
             text="Вы не отправили файл, повторите попытку снова."
         )
 
+
 @router.message(F.text == 'Да', StateFilter(Admin.check_file))
-async def check_yes(message: Message, state: FSMContext, db_session: AsyncSession):
+async def check_yes(message: Message, state: FSMContext):
     img_data = await state.get_data()
     file_bytes = img_data.get('file_bytes')
     file_name = img_data.get('file_name')
 
     if file_bytes and file_name:
-        images, i = await image_extract(file_bytes=file_bytes, file_name=file_name, message=message, db_session=db_session)
+        images, i = await image_utils.image_extract(
+            file_bytes=file_bytes, 
+            file_name=file_name, 
+            message=message, 
+            )
         if images:
-            await save_img_to_db(images, db_session)
+            await image_utils.save_img_to_db(images)
             await message.answer(
                 f'✅ Успешно загружено. Кол-во: {markdown.hbold(i)}',
                 reply_markup=ReplyKeyboardRemove()
@@ -144,13 +148,14 @@ async def check_yes(message: Message, state: FSMContext, db_session: AsyncSessio
 
     await state.clear()
 
+
 @router.message(F.text == 'Нет', StateFilter(Admin.check_file))
 async def check_no(message: Message, state: FSMContext):
     await files(message, state)
 
-# state handler
-@router.message(F.text == '📢 Рассылка', StateFilter(Admin.admin))
-async def rassilka(message: Message, state: FSMContext, db_session: AsyncSession):
+
+@router.message(F.text == MainButtons.newsletter, StateFilter(Admin.admin))
+async def rassilka(message: Message, state: FSMContext,):
     await state.set_state(Admin.rassilka)
 
     await message.answer(
@@ -158,9 +163,9 @@ async def rassilka(message: Message, state: FSMContext, db_session: AsyncSession
         reply_markup=exit_()
     )
 
-# state handler
+
 @router.message(StateFilter(Admin.rassilka))
-async def edit_rassilka(message: Message, state: FSMContext, db_session: AsyncSession):
+async def edit_rassilka(message: Message, state: FSMContext,):
     await state.set_state(Admin.chek_rassilka)
     photo_id = message.photo[-1].file_id if message.photo else None
     gif_id = message.animation.file_id if message.animation else None
@@ -176,27 +181,22 @@ async def edit_rassilka(message: Message, state: FSMContext, db_session: AsyncSe
     )
 
 
-
 samples = '________________________________'
 
-# state handler
 @router.message(StateFilter(Admin.chek_rassilka), F.text == 'Да')
-async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSession):
+async def rassilka_text(message: Message, state: FSMContext):
     data = await state.get_data()
     text = data.get('text')
     photo_id = data.get('photo_id')
     caption = data.get('caption')
     gif_id = data.get('gif_id')
 
-
-    users_count = await db_session.execute(select(func.count(User.id)))
-    total_users = users_count.scalar()
-
     sent_count = 0
     error_count = 0
 
-    users = await db_session.execute(select(User.user_id))
-    for user in users.scalars():
+    total_users = await len(user_dao.get_all_column_values(User.user_id))
+    for user in total_users:
+        await asyncio.sleep(0.2)
         try:
             if photo_id:
                 await message.bot.send_photo(
@@ -232,14 +232,14 @@ async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSe
         f"{samples}\n"
         f"✅ Успешно отправлено:ㅤ{markdown.hbold(str(sent_count))}\n"
         f"{samples}\n"
-        f"❌ Ошибок:ㅤ{markdown.hbold(str(error_count))}",
+        f"❌ Не было отправленно:ㅤ{markdown.hbold(str(error_count))}",
         reply_markup=ReplyKeyboardRemove()
     )
     await state.clear()
 
-# state handler
-@router.message(StateFilter(Admin.chek_rassilka), F.text == '📝 Изменить текст')
-async def edit_text_rassilka(message: Message, state: FSMContext, db_session: AsyncSession):
+
+@router.message(StateFilter(Admin.chek_rassilka), F.text == NewsletterButtons.change_text)
+async def edit_text_rassilka(message: Message, state: FSMContext):
     data = await state.get_data()
     photo_id = data.get('photo_id')
     text = data.get('text')
@@ -269,8 +269,9 @@ async def edit_text_rassilka(message: Message, state: FSMContext, db_session: As
 
     await state.set_state(Admin.rassilka)
 
+
 @router.message(Command(commands=['start', 'help', 'admin', 'status']), StateFilter("*"))
-async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
+async def handle_commands_in_state(message: Message, state: FSMContext):
 
     if message.text == '/start':
         result = 'Вы вернулись в главное меню 👇'
@@ -302,7 +303,7 @@ async def handle_commands_in_state(message: Message, state: FSMContext, db_sessi
         }
 
         if handler := command_handlers.get(message.text):
-            await handler(message, db_session)
+            await handler(message)
         else:
             logging.warning(f"Неизвестная команда: {message.text}")
 
@@ -313,44 +314,43 @@ async def handle_commands_in_state(message: Message, state: FSMContext, db_sessi
             reply_markup=ReplyKeyboardRemove()
         )
 
-# handler
-@router.message(Command('start', prefix='/'))
-async def start_handler(message: Message, db_session: AsyncSession):
 
-    existing_user = await db_session.execute(
-        select(User).where(User.user_id == message.from_user.id)
-    )
-    if not existing_user.scalar():
-        user_id = User(user_id=message.from_user.id)
-        db_session.add(user_id)
-        await db_session.commit()
+@router.message(Command('start', prefix='/'))
+async def start_handler(message: Message):
+    user_id = message.from_user.id
+
+    existing_user = await user_dao.get_one(User.user_id == user_id)
+    if not existing_user:
+        create = await user_dao.create({"user_id": user_id})
+        if not create:
+            logger.error(f"Юзер {user_id} не был добавлен")
+            return
 
     text = markdown.text(
         f"Здравствуйте, {message.from_user.full_name}!\n\n"
-        "🗝️ Познакомьтесь с AMMO VPN:\n",
+        f"🗝️ Познакомьтесь с {BotParams.name_project}:\n",
         "🌑 I Скорость до 10 Гбит/с\n",
         "👁‍🗨 II Непрерывная маскировка IP-адреса и безопасность\n",
         "💻 III Современный интерфейс\n",
         "💳 Оплата картами РФ и СБП",
         sep='\n',
-
     )
 
     await message.answer(text, reply_markup=Main_menu())
 
 
 @router.message(Command('status', prefix='/'))
-async def status_command(message: Message, db_session: AsyncSession):
+async def status_command(message: Message):
     chat_id = message.from_user.id
-    result = await db_session.execute(select(Subscription).where(Subscription.user_id == chat_id).order_by(Subscription.end_date.desc()))
-    subscription = result.scalars().first()
+
+    subscription = await sub_dao.get_one(Subscription.user_id == chat_id, order_by=Subscription.end_date.desc())
 
     if subscription:
         l = [
             "📄 Информация о вашей подписке:",
             f"🗓 Последняя проведенная оплата: {markdown.hcode(subscription.start_date)}",
             f"📅 Дата окончания: {markdown.hcode(subscription.end_date)}",
-            f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'не активный')}"]
+            f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'Не активный')}"]
         await message.answer(
             await samples_(l)
         )
@@ -360,9 +360,8 @@ async def status_command(message: Message, db_session: AsyncSession):
 
 @router.message(Command('help', prefix='/'))
 async def help_command(message: Message):
-
     await message.answer(
         text=markdown.text(
-            f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink("AMMO VPN", url="https://t.me/ammosupport")}\n\n',
+            f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink(BotParams.name_project, url=url_support)}\n\n',
         ),
     )

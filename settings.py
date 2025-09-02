@@ -2,102 +2,46 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
-from typing import Optional, Any
-
-from pydantic import AnyUrl
-from pydantic_settings import SettingsConfigDict, BaseSettings
-from environs import Env
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 DEFAULT_EMAIL = "example@example.com"
-
-
-@dataclass(frozen=True)
-class client:
-    Api_id: int
-    Api_key: str
-
+load_dotenv()
+env = os.getenv()
 
 class YookassaToken:
-    env: Env = Env()
-    env.read_env()
-
     Api_id = env("API_ID")
     Api_key = env("API_KEY")
 
     Api_id_test = env("API_ID_TEST")
     Api_key_test = env("API_KEY_TEST")
 
-# Имя: f1070382_termix
-# Пользователь: f1070382_termix
-# Пароль: 2551repP
-# Адрес хоста: localhost
-
-
-
-@dataclass(frozen=True)
-class TG_bot:
-    token: str
-    admin_id: frozenset[int]
-    webhook_url: str
-
-
-@dataclass
-class Config:
-    tg_bot: TG_bot
-    admin: TG_bot
-    webhook: TG_bot
-
-
-def load_path(path: str | None = None) -> Config:
-
-    env: Env = Env()
-    env.read_env(path)
-
-    tg_bot = TG_bot(token=env('BOT_TOKEN'), admin_id=frozenset(map(int, env('ADMIN_IDS').split(','))), webhook_url=env('WEBHOOK_URL'))
-    admin = TG_bot(token='', admin_id=frozenset(map(int, env('ADMIN_IDS').split(','))), webhook_url=env('WEBHOOK_URL'))
-    webhook = TG_bot(token='', admin_id=frozenset(), webhook_url=env('WEBHOOK_URL'))
-
-    return Config(tg_bot=tg_bot, admin=admin, webhook=webhook)
-
-
-def Admins(path: int | None = None) -> set[int]:
-    env: Env = Env()
-    env.read_env(path)
-
+class BotParams:
     admin_ids_str = env('ADMIN_IDS')
-    admin_ids = set(map(int, admin_ids_str.split(',')))
-    return admin_ids
+    bot_token = env("BOT_TOKEN")
+    username_support = env("USERNAME_SUPPORT")
+    username_channel = env("USERNAME_CHANNEL")
+    username_support_test = env("USERNAME_SUPPORT_TEST")
+    name_project = env("NAME_PROJECT")
+
+class WEBHOOK:
+    port = int(env('PORT')),
+    host = env('HOST'),
+    WEBHOOK_URL = env('WEBHOOK_URL'),
+    WEBHOOK_PATH = env('WEBHOOK_PATH'),
+    WEBHOOK_PATH_TIMEWEB = env('WEBHOOK_PATH_TIMEWEB'),
+    WEBHOOK_URL_RENDER = env('WEBHOOK_URL_RENDER'),
+    WEBHOOK_URL_RAILWAY = env('WEBHOOK_URL_RAILWAY'),
+
+    # uvicorn --port --host
+    HOST_RENDER = env('HOST_RENDER'),
+    PORT_RENDER = int(env('PORT_RENDER')),
+
+    HOST_RAILWAY = env('HOST_RAILWAY'),
+    PORT_RAILWAY = int(env('PORT_RAILWAY')),
 
 
-def WEBHOOK(path: str | None = None) -> dict[str, Any]:
-    env: Env = Env()
-    env.read_env(path)
-
-    settings = {
-        'port': env.int('PORT'),
-        'host': env('HOST'),
-        'WEBHOOK_URL': env('WEBHOOK_URL'),
-        'WEBHOOK_PATH': env('WEBHOOK_PATH'),
-        'WEBHOOK_PATH_TIMEWEB': env('WEBHOOK_PATH_TIMEWEB'),
-        'WEBHOOK_URL_RENDER': env('WEBHOOK_URL_RENDER'),
-        "WEBHOOK_URL_RAILWAY": env('WEBHOOK_URL_RAILWAY'),
-
-        # uvicorn --port --host
-        'HOST_RENDER': env('HOST_RENDER'),
-        'PORT_RENDER': env.int('PORT_RENDER'),
-
-        "HOST_RAILWAY": env('HOST_RAILWAY'),
-        "PORT_RAILWAY": env.int('PORT_RAILWAY'),
-    }
-    return settings
-
-# localhost
-def SQl_localhost(path: Optional[str] = None) -> str:
-    env: Env = Env()
-    env.read_env(path)
-
+class SqlLocalhost:
     ip = env('IP')
     PASSWORD = env('PASSWORD')
     DATABASE = env('DATABASE')
@@ -105,23 +49,17 @@ def SQl_localhost(path: Optional[str] = None) -> str:
 
     postgres_url = f'postgresql+asyncpg://{PGUSER}:{PASSWORD}@{ip}/{DATABASE}'
 
-    return postgres_url
+logger.info(SqlLocalhost.postgres_url)
 
-logger.info(SQl_localhost())
+class RedisBD:
+    LOCAL_REDIS = env("LOCAL_REDIS")
+    PROD_REDIS = env("PROD_REDIS")
 
-# railway
-def SQL_URL(path: str | None = None) -> dict[str, AnyUrl | str]:
-    env = Env()
-    if path:
-        env.read_env(path)
-    else:
-        env.read_env()
-
+class SqlUrlService:
     urls_base = {
         "DATABASE_URL_PUBLIC": env('DATABASE_URL_PUBLIC'),
         "DATABASE_URL_PUBLIC_RENDER": env('DATABASE_URL_PUBLIC_RENDER'),
         'DATABASE_URL_PUBLIC_TIMEWEB': env('DATABASE_URL_PUBLIC_TIMEWEB'),
     }
 
-    return urls_base
-logger.info(SQL_URL())
+logger.info(SqlUrlService.urls_base)

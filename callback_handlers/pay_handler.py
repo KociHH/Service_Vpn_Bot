@@ -1,54 +1,40 @@
 import logging
-
 import asyncio
 import os
-from datetime import datetime, timezone
 from typing import Union
-
-import pytz
-from aiogram import F
-from aiogram.client import bot
 from aiogram.enums import ChatAction
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from aiogram.utils import markdown
 from aiogram import Router
 from dotenv import load_dotenv
-from environs import Env
-from sqlalchemy import update
-from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-import settings
-# from bd_api.middlewares.db_sql import info_month
-from bd_api.middlewares.sa_tables import User, UserUpdater, Subscription, subscriber
-from callback_handlers.callback_handlers import upsert_user, purchase
-# from callback_handlers.pay_func.pay_yookassa import check_one, \
-#     check_tree, check_two
+from utils.other import url_support, currently_msk
 from callback_handlers.pay_func.pay_yookassa import check
 from keyboards.inline_keyboard.pay_inline_keyboard import CashCK, CashMenu, info_month
-
-from keyboards.inline_keyboard.main_inline_keyboard import info, info3, info2, MainCD, Main
-from utils.date_moscow import get_current_date
-from utils.image_ import send_crcode, delete_code, admin_id
+from keyboards.inline_keyboard.main_inline_keyboard import info, info3, info2, Main
+from utils.load_image import ImageProcessing, admin_id
+from db.middlewares.middle import async_session
+from db.tables import Images, PaidSubscribers, images_dao, paid_dao
 
 logger = logging.getLogger(__name__)
 router = Router(name=__name__)
-current_time = get_current_date(False)
+current_time = currently_msk.strftime(f"Дата: {markdown.hbold('%Y-%m-%d')}, Время: {markdown.hbold('%H:%M')}")
 load_dotenv()
+
+image_processing = ImageProcessing(async_session, images_dao)
 
 
 @router.callback_query(CashCK.filter())
-async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext, db_session: AsyncSession):
+async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext):
     await call.message.bot.send_chat_action(
         chat_id=call.message.chat.id,
         action=ChatAction.TYPING
     )
     try:
-        # Создаем экземпляр класса info_month
 
         subscription = info_month(
-            price=0.0,
+            price=0.0, 
             month=0,
             description="",
             callback_data=callback_data,
@@ -57,7 +43,6 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
             MOVEMENT_OPLATA_TREE=CashMenu.MOVEMENT_OPLATA_TREE
         )
 
-        # Проверяем, что action существует в CashMenu
         if callback_data.action in [
             CashMenu.MOVEMENT_OPLATA,
             CashMenu.MOVEMENT_OPLATA_TWO,
@@ -65,7 +50,7 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
         ]:
 
             price, month, description = subscription.change_month_price()
-            markup = await subscription.oplatas(call.message, db_session)
+            markup = await subscription.oplatas(call.message)
 
 
             await call.answer()
@@ -90,7 +75,7 @@ async def cash_ck(call: CallbackQuery, callback_data: CashCK, state: FSMContext,
         )
 
 @router.callback_query(lambda i: i.data.startswith('test_check_'))
-async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSession, state: FSMContext):
+async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext):
     user_id = call.from_user.id
     username = f"@{call.from_user.username}"
 
@@ -122,22 +107,33 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
             )
             return
 
-        payment_id = call.data[len("test_check_"):]
-        check_ = await check(payment_id, db_session, message_callback=call, month=month, date=get_current_date(True))
+        payment_parts = call.data.split('_')
+        payment_id = payment_parts[2]
+        payment_amount = float(payment_parts[3])
+        check_ = await check(payment_id, message_callback=call, month=month, date=currently_msk.date())
 
         if not check_:
             await call.message.answer(
                 '❗ Оплата не прошла ❗\n\n'
                 'Если вы уверены, что совершили оплату, пожалуйста,'
-                'обратитесь в нашу поддержку - @ammosupport'
+                f'обратитесь в поддержку - {url_support}'
             )
             return
 
+        paid_create = await paid_dao.create({
+            "user_id": user_id,
+            "payment_amount": payment_amount,
+            "date_paid": currently_msk,
+        })
+        if not paid_create:
+            logger.error(f"Не добавились данные об оплате в базу {paid_dao.model.__name__} юзера {user_id}")
+
         await call.message.answer("✅ Оплата прошла успешно!")
-        await asyncio.sleep(0.5)
+        
+
         counting += 1
         await state.update_data(counting=counting)
-        name, id_img, sub = await send_crcode(call, db_session, user_id)
+        name, id_img, sub = await image_processing.send_crcode(call, user_id)
 
         if not sub:
             logger.error("Подписка не найдена.")
@@ -153,7 +149,7 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
             await call.message.bot.send_message(
                 chat_id = admin_id,
                 text=
-                f'Ебать фотки закончились, чел оплатил а их нет напиши {username} если нет то,\n'
+                f'Фотки закончились напиши {username} если нет то,\n'
                 f'его {markdown.hlink(f"{link}", f"tg://user?id={user_id}")}\n'
                 f'Он оплатил на {markdown.hbold(month)} месяц(-а)'
             )
@@ -181,91 +177,10 @@ async def check_handler(call: Union[CallbackQuery, Message], db_session: AsyncSe
             f"Время платежа: {start}\n"
             f"Кончается: {end}\n"
         )
-        await delete_code(call, db_session, id_img)
+        await image_processing.delete_code(call, id_img)
     except Exception as e:
         logging.error(f'Ошибка при проверке оплаты: {e}')
         await call.answer(
             "❗ Произошла ошибка при проверке платежа.\n"
             "Пожалуйста, попробуйте позже или обратитесь в поддержку - @ammosupport\n"
         )
-
-
-# @router.callback_query(F.data == 'get_file')
-# async def giv_config(call: CallbackQuery, state: FSMContext, db_session: AsyncSession):
-#     data_state = await state.get_data()
-#
-#     action_count = data_state.get('action_count', 0)
-#     action_count += 1
-#
-#     if action_count > 1:
-#         await call.answer('🥳 Вы уже оплатили, ожидайте ответа')
-#         return
-#
-#     await state.update_data(action_count=action_count)
-#
-#     admin_id = os.getenv('ADMIN_ID')
-#
-#     button_support = InlineKeyboardButton(
-#         text="🤝 Обратиться в поддержку",
-#         callback_data='contact_support',
-#         url='https://t.me/ammosupport'
-#     )
-#
-#     button_return_month = InlineKeyboardButton(
-#         text='↩ Вернуться в меню выбора месяца',
-#         callback_data='return_month'
-#     )
-#
-#     inline_kb = InlineKeyboardMarkup(inline_keyboard=[
-#         [button_support],
-#         [button_return_month]
-#     ])
-#
-#
-#     data = data_state.get("actions")
-#     callb = {
-#         CashMenu.MOVEMENT_OPLATA: "1 месяц",
-#         CashMenu.MOVEMENT_OPLATA_TWO: "2 месяца",
-#         CashMenu.MOVEMENT_OPLATA_TREE: "3 месяца",
-#     }
-#
-#     if data in callb:
-#         value = callb[data]
-#         await call.answer()
-#         user = await db_session.execute(select(User).where(User.user_id == call.message.chat.id))
-#         result = user.scalar_one_or_none()
-#
-#         if result:
-#             name_user = call.message.chat.full_name
-#             user_name = call.message.chat.username
-#
-#             if not name_user or name_user.strip() == "":
-#                 name_user = 'ссылка'
-#
-#             if user_name is None:
-#                 clickable_user = markdown.hlink(f"{name_user}", f"tg://user?id={call.message.chat.id}")
-#             else:
-#                 clickable_user = f"@{user_name}"
-#
-#             await call.message.bot.send_message(
-#                 chat_id=admin_id,
-#                 text=f'Пользователь {clickable_user} запросил файл на {markdown.hbold(value)},\n'
-#                 f'{current_time}'
-#             )
-#
-#             await call.message.answer(
-#                 'Ваш запрос отправлен!\n\n'
-#                 '⌛ В ближайшее время администратор вам ответит.\n\n'
-#                 '✨ Если вам срочно нужен файл, то обратитесь напрямую, нажав на кнопку ниже',
-#                 reply_markup=inline_kb
-#             )
-#
-#             logger.info(f'Пользователь {clickable_user} запросил файл на {value}')
-#
-#     else:
-#         logging.error(f"Некорректные данные в состоянии: {data}")
-#
-#
-# @router.callback_query(F.data == 'return_month')
-# async def returned_month(call: CallbackQuery):
-#     await purchase(call)

@@ -2,11 +2,11 @@ from logging.config import fileConfig
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
-from bd_api.middle import engine
+from db.middlewares.middle import engine
 from settings import SQlpg
 # postgres_url = SQlpg(path='.env')
 
-from bd_api.middlewares.sa_tables import Base
+from db.tables import Base
 
 
 

@@ -1,19 +1,21 @@
-
 import asyncio
 import logging
-
-from settings import SQl_localhost, SQL_URL
 from aiogram import BaseMiddleware
-from sqlalchemy import select, pool
+from sqlalchemy import  pool
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from typing import Callable, Dict, Any, Awaitable
-from aiogram.types import TelegramObject, CallbackQuery, Message, ReplyKeyboardRemove
-
+from typing import Callable, Any
+from aiogram.types import TelegramObject
+from utils.other import url_db
 
 logger = logging.getLogger(__name__)
 
-sql_data = SQL_URL()
-engine = create_async_engine(sql_data.get('DATABASE_URL_PUBLIC_TIMEWEB'), future=True, echo=False, poolclass=pool.NullPool, connect_args={"ssl": "require"})
+engine = create_async_engine(
+    url_db, 
+    future=True, 
+    echo=False, 
+    poolclass=pool.NullPool, 
+    connect_args={"ssl": "require"}
+)
 async_session = async_sessionmaker(engine, expire_on_commit=False,  class_=AsyncSession)
 
 
@@ -24,9 +26,9 @@ class DatabaseMiddleware(BaseMiddleware):
 
     async def __call__(
         self,
-        handler: Callable[[TelegramObject, Dict[str, Any]], Any],
+        handler: Callable[[TelegramObject, str | Any], Any],
         event: TelegramObject,
-        data: Dict[str, Any],
+        data: str | Any,
     ) -> Any:
         async with self.session_factory() as session:
             data["db_session"] = session

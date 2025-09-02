@@ -1,12 +1,10 @@
 from aiogram.types import ReplyKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from settings import BotParams
+from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons
 
-import settings
-
-# it is not used
-# it is not used
 def admin_kb() -> ReplyKeyboardMarkup:
-    admin_ids = settings.Admins()
+    admin_ids = BotParams.admin_ids_str
     print(f"Admin_id: {admin_ids}")
 
     for admin_id in admin_ids:
@@ -16,11 +14,12 @@ def admin_kb() -> ReplyKeyboardMarkup:
             return builder.as_markup(resize_keyboard=True)
 
 # create r.button
-def rassilka_kb() -> ReplyKeyboardMarkup:
+def main_menu_kb() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
-    builder.button(text='📢 Рассылка')
-    builder.button(text='🛠 Загрузить файлы')
-    builder.button(text="🧠 Проверить кол-во фото в бд")
+    builder.button(text=MainButtons.newsletter)
+    builder.button(text=MainButtons.load_files)
+    builder.button(text=MainButtons.check_images)
+    builder.button(text=MainButtons.info_payments)
     builder.adjust(2, 1)
 
     return builder.as_markup(resize_keyboard=True)
@@ -43,6 +42,6 @@ def exit_() -> ReplyKeyboardMarkup:
 def yes_no_kb() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(text='Да')
-    builder.button(text='📝 Изменить текст')
+    builder.button(text=NewsletterButtons.change_text)
     builder.adjust(2)
     return builder.as_markup(resize_keyboard=True)
