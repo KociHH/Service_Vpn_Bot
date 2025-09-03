@@ -1,10 +1,5 @@
 from aiogram.fsm.state import StatesGroup, State
 
-class Email(StatesGroup):
-    email = State()
-    action = State()
-    data = State()
-
 class Admin(StatesGroup):
     admin = State()
     rassilka = State()

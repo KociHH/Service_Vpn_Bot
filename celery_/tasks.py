@@ -7,12 +7,15 @@ from datetime import datetime, timedelta
 from utils.other import currently_msk
 from aiogram.utils import markdown
 from dotenv import load_dotenv
-from db.tables import Subscription, User, user_dao, sub_dao
+from db.tables import Subscription, User
 from utils.text_message import send_message
 from aiogram import Bot
 from settings import BotParams
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.enums import ParseMode
+from sqlalchemy.ext.asyncio import AsyncSession
+from kos_Htools.sql.sql_alchemy.dao import BaseDAO
+from db.middlewares.middle import async_session as async_session_factory
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -24,7 +27,9 @@ def notify_expiring_subscriptions():
     end_log = "_______________________________________________________________________________________________________________"
     bot = Bot(token=BotParams.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     
-    async def _async(bot):
+    async def _async(bot, db_session: AsyncSession):
+        user_dao = BaseDAO(User, db_session)
+        sub_dao = BaseDAO(Subscription, db_session)
         target_date = currently_msk + timedelta(days=3)
         sended = 0
     # 1
@@ -87,6 +92,9 @@ def notify_expiring_subscriptions():
         except Exception as e:
             logger.error(f"Ошибка при проверке истекших подписок: {e}")
             print(end_log)
-
-    asyncio.run(_async(bot))
+    
+    async def run_celery_task():
+        async with async_session_factory() as session:
+            await _async(bot, session)
+    asyncio.run(run_celery_task())
 

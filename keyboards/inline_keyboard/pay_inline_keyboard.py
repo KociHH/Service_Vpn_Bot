@@ -1,59 +1,39 @@
-from enum import IntEnum, auto
 from aiogram import Router
-from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from typing import Any
 from db.middlewares.middle import logger
-from db.tables import User, user_dao
 from callback_handlers.pay_func.pay_yookassa import create_oplata
-from keyboards.inline_keyboard.main_inline_keyboard import Main, info, info3, info2
+from keyboards.inline_keyboard.main_inline_keyboard import Main, info, info3, info2, Month
+
 
 router = Router()
 
-class CashMenu(IntEnum):
-    MOVE_OPLATA = auto()
-    MOVE_OPLATA_TWO = auto()
-    MOVE_OPLATA_TREE = auto()
-    MOVEMENT_OPLATA = auto()
-    MOVEMENT_OPLATA_TWO = auto()
-    MOVEMENT_OPLATA_TREE = auto()
-
-class CashCK(CallbackData, prefix='cash'):
-    action: CashMenu
-
+class CashMenu:
+    MOVEMENT_OPLATA = "MOVEMENT_OPLATA"
+    MOVEMENT_OPLATA_TWO = "MOVEMENT_OPLATA_TWO"
+    MOVEMENT_OPLATA_TREE = "MOVEMENT_OPLATA_TREE"
 
 class info_month:
     def __init__(
             self,
-            price: float,
-            month: int,
-            description: str,
-            callback_data: CashCK,
-            MOVEMENT_OPLATA: CashMenu.MOVEMENT_OPLATA,
-            MOVEMENT_OPLATA_TWO: CashMenu.MOVEMENT_OPLATA_TWO,
-            MOVEMENT_OPLATA_TREE: CashMenu.MOVEMENT_OPLATA_TREE = None
     ) -> None:
 
-        self.price = price
-        self.month = month
-        self.description = description
-        self.callback_data = callback_data
-        self.MOVEMENT_OPLATA = MOVEMENT_OPLATA
-        self.MOVEMENT_OPLATA_TWO = MOVEMENT_OPLATA_TWO
-        self.MOVEMENT_OPLATA_TREE = MOVEMENT_OPLATA_TREE
+        self.price = 0
+        self.month = 0
+        self.description = ""
 
-    def change_month_price(self):
-        if self.callback_data.action == self.MOVEMENT_OPLATA:
+    def change_month_price(self, callback_data: Any):
+        if callback_data == CashMenu.MOVEMENT_OPLATA:
             self.description = info.description
             self.month = info.month
             self.price = info.price
-        elif self.callback_data.action == self.MOVEMENT_OPLATA_TWO:
+        elif callback_data == CashMenu.MOVEMENT_OPLATA_TWO:
             self.description = info2.description
             self.month = info2.month
             self.price = info2.price
-        elif self.callback_data.action == self.MOVEMENT_OPLATA_TREE:
+        elif callback_data == CashMenu.MOVEMENT_OPLATA_TREE:
             self.description = info3.description
             self.month = info3.month
             self.price = info3.price
@@ -62,8 +42,7 @@ class info_month:
     async def oplatas(self, message: Message) -> InlineKeyboardMarkup:
         user_id = message.chat.id
         builder = InlineKeyboardBuilder()
-        email = await user_dao.get_one(User.user_id == user_id)
-        payment_url, payment_id = create_oplata(self.price, user_id, email, self.month, self.description)
+        payment_url, payment_id = create_oplata(self.price, user_id, self.month, self.description)
 
         if not payment_url or not payment_id:
             logger.error(f'Ошибка создания платежа: {payment_url}, {payment_id}')

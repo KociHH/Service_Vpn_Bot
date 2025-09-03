@@ -14,7 +14,6 @@ engine = create_async_engine(
     future=True, 
     echo=False, 
     poolclass=pool.NullPool, 
-    connect_args={"ssl": "require"}
 )
 async_session = async_sessionmaker(engine, expire_on_commit=False,  class_=AsyncSession)
 

@@ -20,6 +20,6 @@ path_tasks = 'celery_.tasks.'
 beat_schedule = {
     "notify-expiring-subscriptions": {
         'task': path_tasks + 'notify_expiring_subscriptions',
-        'schedule': 43200.0,
+        'schedule': 15.0, # 43200.0
     }
 }

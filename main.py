@@ -14,9 +14,8 @@ from db.middlewares.middle import DatabaseMiddleware, async_session
 from db.tables import create_tables
 from aiogram.client.bot import DefaultBotProperties
 from commands import router as commands_router
-from typing import AsyncGenerator
 from settings import BotParams
-from utils.other import webhook
+from utils.other import webhook, port, host
 
 router = Router(name=__name__)
 logging.basicConfig(level=logging.INFO)
@@ -26,10 +25,6 @@ dp = Dispatcher()
 dp.include_routers(commands_router)
 bot = Bot(token=BotParams.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp.update.middleware(DatabaseMiddleware(async_session))
-
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session() as session:
-        yield session
 
 def create_lifespan(bot: Bot):
     @asynccontextmanager
@@ -46,7 +41,7 @@ def create_lifespan(bot: Bot):
         await bot.session.close()
     return lifespan
 
-app = FastAPI(lifespan=create_lifespan(bot, async_session))
+app = FastAPI(lifespan=create_lifespan(bot))
 
 @app.post('/webhook')
 async def bot_webhook(request: Request):
@@ -58,5 +53,5 @@ async def bot_webhook(request: Request):
 
 if __name__ == "__main__":
     asyncio.run(create_tables())
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=host, port=port)
 

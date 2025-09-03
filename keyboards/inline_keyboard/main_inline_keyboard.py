@@ -1,20 +1,17 @@
 from datetime import datetime
-from enum import IntEnum, auto
+from enum import StrEnum, auto
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils import markdown
 from settings import BotParams
 
-class Month(IntEnum):
+class Month:
     One_month = "One_month"
     Two_month = "Two_month"
-    Tree_month = "Tree_month = auto()"
+    Tree_month = "Tree_month"
 
-class MonthCD(CallbackData, prefix="month"):
-    action: Month
-
-class Main(IntEnum):
+class Main:
     purchase = "purchase"
     advantages = "advantages"
     Support = "Support"

@@ -11,19 +11,24 @@ from aiogram.types import InputFile, BufferedInputFile, ReplyKeyboardRemove, Cal
 from aiogram.utils import markdown
 from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.tables import Images, Subscription, images_dao, sub_dao
+from db.tables import Images, Subscription
+from kos_Htools.sql.sql_alchemy.dao import BaseDAO
+from settings import BotParams
+from utils.other import currently_msk
 
 logger = logging.getLogger(__name__)
 UNRAR_PATH = r"C:\unrar\UnRAR.exe"
-admin_id = os.getenv('ADMIN_ID')
 
 
 class ImageProcessing:
-    def __init__(self):
+    def __init__(self, db_session: AsyncSession):
         self.i = 0
+        self.images_dao = BaseDAO(Images, db_session)
+        self.sub_dao = BaseDAO(Subscription, db_session)
+        self.db_session = db_session
 
     async def db_checking_img_data(self, message, img_data: str, file_name: str):
-        output_image = await images_dao.get_one(Images.image == img_data)
+        output_image = await self.images_dao.get_one(Images.image == img_data)
         if output_image:
             await message.answer(f"Такое изображение как {markdown.hcode(file_name)} уже имеется, я его пропускаю ->")
             return False
@@ -34,13 +39,13 @@ class ImageProcessing:
             saved = len(images)
             for name, img_data in images:
                 while True:
-                    existing_img = await images_dao.get_one(Images.image == img_data)
+                    existing_img = await self.images_dao.get_one(Images.image == img_data)
                     if existing_img:
                         logger.info("Есть похожий qrcode пропускаю..")
                         saved -= 1
                         break
 
-                    image_created = await images_dao.create({
+                    image_created = await self.images_dao.create({
                         "name": name,
                         "image": img_data,
                     })
@@ -122,7 +127,7 @@ class ImageProcessing:
 
     async def count_images_db(self, message: CallbackQuery):
         try:
-            count = await len(images_dao.get_all_column_values(Images.id))
+            count = len(await self.images_dao.get_all_column_values(Images.id))
 
             if count == 0:
                 await message.answer(
@@ -137,7 +142,7 @@ class ImageProcessing:
 
 
     async def delete_code(self, message, id_img: int):
-        delete_img = await self.image_dao.delete(Images.id == id_img)
+        delete_img = await self.images_dao.delete(Images.id == id_img)
         if delete_img:
             logger.info('Фото успешно удалено')
 
@@ -151,13 +156,14 @@ class ImageProcessing:
     async def send_crcode(self, message: CallbackQuery, user_id: int):
         package_sub = []
         try:
-            src = await self.image_dao.get_one(Subscription.user_id == user_id)
+            src = await self.sub_dao.get_one(Subscription.user_id == user_id)
             if src:
                 start_date = src.start_date
                 end_date = src.end_date
                 package_sub.append((start_date, end_date))
 
-            output_image = await self.image_dao.get_one(Images.id is not None)
+            all_images = await self.images_dao.get_all()
+            output_image = all_images[0] if all_images else None
 
             if output_image:
                 name = output_image.name
@@ -177,13 +183,14 @@ class ImageProcessing:
                     "лучше приобрести новый vpn для другого устройства\n"
                     "III Не забывайте выходить из VPN, когда он вам не нужен\n\n"
 
-                    "Желаем Вам приятного использования AMMO VPN!",
+                    f"Желаем Вам приятного использования {BotParams.name_project} VPN!",""
                 )
 
                 await message.message.answer_photo(
                     photo=image_file,
                     caption=text
                 )
+                await self.delete_code(message, id_img)
 
                 return name, id_img, package_sub
             else:

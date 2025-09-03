@@ -1,16 +1,14 @@
 import logging
 import uuid
 import pytz
-
 from typing import Union
-
 import yookassa
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from yookassa import Configuration, Payment
 from aiogram import Router
-
+from utils.other import yookassa_bool
 import settings
 from db.middlewares.middle import logger
 from db.tables import subscriber, Subscription
@@ -25,11 +23,11 @@ def configure_yookassa(true_module):
         Configuration.secret_key = settings.YookassaToken.Api_key
 
 
-configure_yookassa(True)
+configure_yookassa(yookassa_bool)
 router = Router(name=__name__)
 
 
-def create_oplata(amount, chat_id, email, month, description):
+def create_oplata(amount, chat_id, month, description):
     id_key = str(uuid.uuid4())
     payment = Payment.create({
 
@@ -42,7 +40,7 @@ def create_oplata(amount, chat_id, email, month, description):
         },
         "confirmation": {
             "type": "redirect",
-            "return_url": "https://t.me/vpnammobot"
+            "return_url": "https://t.me/vpnshadebot"
         },
         "capture": True,
         "metadata": {
@@ -51,7 +49,7 @@ def create_oplata(amount, chat_id, email, month, description):
         "description": description,
         "receipt": {
             "customer": {
-                "email": email
+                "email": "example@example.com"
             },
             "items": [
                 {
@@ -70,8 +68,8 @@ def create_oplata(amount, chat_id, email, month, description):
     return payment.confirmation.confirmation_url, payment.id
 
 
-async def check(payment_id, message_callback: Union[Message, CallbackQuery], month: int, date: int):
-    user_id = message_callback.from_user.id
+async def check(payment_id, call: CallbackQuery, month: int, date: int, db_session: AsyncSession):
+    user_id = call.from_user.id
     try:
 
         payment = yookassa.Payment.find_one(payment_id)
@@ -88,8 +86,7 @@ async def check(payment_id, message_callback: Union[Message, CallbackQuery], mon
         subscriber_obj = subscriber(
             user_id=user_id,
             month=month,
-            start_date=date,
-            end_date=date,
+            db_session=db_session
         )
         await subscriber_obj.date_Subscribers()
         logger.info(f"Успешно обновил подписку для пользователя: {user_id}.")

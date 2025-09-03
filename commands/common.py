@@ -11,25 +11,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
 from settings import BotParams
 from FSM.states import Admin
-from db.tables import User, Subscription, Images, sub_dao, user_dao
+from db.tables import User, Subscription, Images
 from keyboards.inline_keyboard.main_inline_keyboard import Main_menu, return_kb_support
 from keyboards.reply_keyboard.admin_panel import admin_kb, main_menu_kb, yes_no_kb, yes_no, exit_
 from utils.load_image import ImageProcessing
 from utils.text_message import samples_
 from utils.other import url_support
-from db.middlewares.middle import async_session
+from sqlalchemy.ext.asyncio import AsyncSession
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons
 
 router = Router()
 logger = logging.getLogger(__name__)
 
-image_dao = BaseDAO(Images, async_session)
-image_utils = ImageProcessing(async_session, image_dao)
-
 
 def is_admin(message: Message) -> bool:
-    return message.from_user.id in BotParams.admin_ids_str
+    return str(message.from_user.id) in [admin_id.strip() for admin_id in BotParams.admin_ids_str.split(',')]
 
 
 @router.message(F.text == '⬅️ Вернуться', StateFilter("*"))
@@ -48,7 +45,8 @@ async def admin(message: Message, state: FSMContext):
 
 
 @router.message(F.text == MainButtons.check_images, StateFilter(Admin.admin))
-async def check_image(message: Message):
+async def check_image(message: Message, db_session: AsyncSession):
+    image_utils = ImageProcessing(db_session)
     await image_utils.count_images_db(message)
 
 
@@ -118,12 +116,13 @@ async def check_file(message: Message, state: FSMContext):
 
 
 @router.message(F.text == 'Да', StateFilter(Admin.check_file))
-async def check_yes(message: Message, state: FSMContext):
+async def check_yes(message: Message, state: FSMContext, db_session: AsyncSession):
     img_data = await state.get_data()
     file_bytes = img_data.get('file_bytes')
     file_name = img_data.get('file_name')
 
     if file_bytes and file_name:
+        image_utils = ImageProcessing(db_session)
         images, i = await image_utils.image_extract(
             file_bytes=file_bytes, 
             file_name=file_name, 
@@ -184,7 +183,7 @@ async def edit_rassilka(message: Message, state: FSMContext,):
 samples = '________________________________'
 
 @router.message(StateFilter(Admin.chek_rassilka), F.text == 'Да')
-async def rassilka_text(message: Message, state: FSMContext):
+async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSession):
     data = await state.get_data()
     text = data.get('text')
     photo_id = data.get('photo_id')
@@ -194,6 +193,7 @@ async def rassilka_text(message: Message, state: FSMContext):
     sent_count = 0
     error_count = 0
 
+    user_dao = BaseDAO(User, db_session)
     total_users = await len(user_dao.get_all_column_values(User.user_id))
     for user in total_users:
         await asyncio.sleep(0.2)
@@ -271,7 +271,7 @@ async def edit_text_rassilka(message: Message, state: FSMContext):
 
 
 @router.message(Command(commands=['start', 'help', 'admin', 'status']), StateFilter("*"))
-async def handle_commands_in_state(message: Message, state: FSMContext):
+async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
 
     if message.text == '/start':
         result = 'Вы вернулись в главное меню 👇'
@@ -298,12 +298,18 @@ async def handle_commands_in_state(message: Message, state: FSMContext):
         command_handlers = {
             '/admin': admin,
             '/start': start_handler,
-            '/help': lambda m, db_s: help_command(m),
+            '/help': help_command,
             '/status': status_command,
         }
 
         if handler := command_handlers.get(message.text):
-            await handler(message)
+            if message.text in ['/admin', '/start', '/status', '/help']:
+                if message.text == '/admin':
+                    await handler(message, state)
+                elif message.text in ['/start', "/status"]:
+                    await handler(message, db_session)
+                elif message.text == '/help':
+                    await handler(message)
         else:
             logging.warning(f"Неизвестная команда: {message.text}")
 
@@ -314,16 +320,43 @@ async def handle_commands_in_state(message: Message, state: FSMContext):
             reply_markup=ReplyKeyboardRemove()
         )
 
+async def status_admin(user_id: int) -> str:
+    user_id = str(user_id)
+
+    if user_id in BotParams.admin_ids_str:
+        return 'admin'
+    return 'user'
+
 
 @router.message(Command('start', prefix='/'))
-async def start_handler(message: Message):
+async def start_handler(message: Message, db_session: AsyncSession):
     user_id = message.from_user.id
+    name_user = message.from_user.full_name
+    username = message.from_user.username
 
-    existing_user = await user_dao.get_one(User.user_id == user_id)
-    if not existing_user:
-        create = await user_dao.create({"user_id": user_id})
-        if not create:
-            logger.error(f"Юзер {user_id} не был добавлен")
+    user_dao = BaseDAO(User, db_session)
+    existing = await user_dao.get_one(User.user_id == user_id)
+
+    user_save = {
+        "user_name": username if username else "Не указан",
+        "full_name": name_user or "Невидимый ник",
+        "admin_status": await status_admin(user_id),
+    }
+
+    if existing:
+        updater = await user_dao.update(
+            User.user_id == user_id,
+            user_save,
+        )
+        if not updater:
+            logger.error(f"Не обновился юзер {user_id}")
+            return
+
+    else:
+        user_save["user_id"] = user_id
+        user_create = await user_dao.create(user_save)
+        if not user_create:
+            logger.error(f"Не создался юзер {user_id}")
             return
 
     text = markdown.text(
@@ -340,15 +373,16 @@ async def start_handler(message: Message):
 
 
 @router.message(Command('status', prefix='/'))
-async def status_command(message: Message):
+async def status_command(message: Message, db_session: AsyncSession):
     chat_id = message.from_user.id
 
-    subscription = await sub_dao.get_one(Subscription.user_id == chat_id, order_by=Subscription.end_date.desc())
+    sub_dao = BaseDAO(Subscription, db_session)
+    subscription = await sub_dao.get_one(Subscription.user_id == chat_id)
 
     if subscription:
         l = [
             "📄 Информация о вашей подписке:",
-            f"🗓 Последняя проведенная оплата: {markdown.hcode(subscription.start_date)}",
+            f"🗓 Дата первой оплаты: {markdown.hcode(subscription.start_date)}",
             f"📅 Дата окончания: {markdown.hcode(subscription.end_date)}",
             f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'Не активный')}"]
         await message.answer(
@@ -362,6 +396,6 @@ async def status_command(message: Message):
 async def help_command(message: Message):
     await message.answer(
         text=markdown.text(
-            f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink(BotParams.name_project, url=url_support)}\n\n',
+            f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink(title=BotParams.name_project, url=url_support)}\n\n',
         ),
     )
