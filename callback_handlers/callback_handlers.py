@@ -1,20 +1,13 @@
-import traceback
-from typing import Optional, Union
 from aiogram import F
 from aiogram import Router
-from aiogram.enums import ChatAction
-from aiogram.filters import StateFilter
-from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
+from aiogram.types import CallbackQuery
 from aiogram.utils import markdown
 from db.middlewares.middle import logger
-from db.tables import User, Subscription, PaymentHistory
+from db.tables import User
 from keyboards.inline_keyboard.main_inline_keyboard import Main, Main_menu, Month_kb, return_kb_support, \
-    Month, info2, info, info3, info_price_249, info_price_579, info_price_979
+    Month, info2, info, info3, info_price_249, info_price_579, info_price_979, Other
 from keyboards.inline_keyboard.pay_inline_keyboard import CashMultiBt, CashMenu
-from keyboards.reply_keyboard.state_reply import build_net_keyboard
-from settings import DEFAULT_EMAIL, BotParams
-from typing import Any
+from settings import BotParams
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.other import url_support
@@ -78,7 +71,7 @@ async def month_processing(call: CallbackQuery, db_session: AsyncSession):
 
 
 @router.callback_query(F.data == Main.MAIN)
-async def start(call: CallbackQuery):
+async def start_deep_link(call: CallbackQuery):
 
     text = markdown.text(
         f"Здравствуйте, {call.from_user.full_name}!\n\n"
@@ -92,10 +85,15 @@ async def start(call: CallbackQuery):
     await call.message.edit_text(text, reply_markup=Main_menu())
 
 
-@router.callback_query(F.data == Main.purchase)
+@router.callback_query(F.data.in_((Main.purchase, Main.extend)))
 async def purchase(call: CallbackQuery):
     await call.answer()
-    await call.message.edit_text(
+    if call.data == Main.extend:
+        message = call.message.answer
+    else:
+        message = call.message.edit_text
+
+    await message(
         text=markdown.text(
             f'⏳VPN {info_price_249.month} месяц\n'
             'Описание:\n'
@@ -139,3 +137,8 @@ async def purchase_Support(call: CallbackQuery):
             f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink(title=BotParams.name_project, url=url_support)}\n\n',
         ),
         reply_markup=return_kb_support())
+
+
+@router.callback_query(F.data.startswith(Other.slide))
+async def slide_processing():
+    pass

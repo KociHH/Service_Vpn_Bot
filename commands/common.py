@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
 from settings import BotParams
 from FSM.states import Admin
-from db.tables import User, Subscription, Images
-from keyboards.inline_keyboard.main_inline_keyboard import Main_menu, return_kb_support
+from db.tables import User, Subscription, Images, PaymentHistory
+from keyboards.inline_keyboard.main_inline_keyboard import Main_menu, slide_kb
 from keyboards.reply_keyboard.admin_panel import admin_kb, main_menu_kb, yes_no_kb, yes_no, exit_
 from utils.load_image import ImageProcessing
 from utils.text_message import samples_
@@ -20,6 +20,10 @@ from utils.other import url_support
 from sqlalchemy.ext.asyncio import AsyncSession
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons
+from aiogram.utils.deep_linking import decode_payload, create_start_link
+from aiogram.client.bot import DefaultBotProperties
+from aiogram import Bot
+from aiogram.enums import ParseMode
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -270,6 +274,37 @@ async def edit_text_rassilka(message: Message, state: FSMContext):
     await state.set_state(Admin.rassilka)
 
 
+@router.message(F.text == MainButtons.info_payments, StateFilter(Admin.admin))
+async def output_users(state: FSMContext, message: Message, db_session: AsyncSession):
+    pay_dao = BaseDAO(PaymentHistory, db_session)
+    check_users = await pay_dao.get_all_column_values(PaymentHistory.user_id)
+    max_users = 10
+    bot = Bot(token=BotParams.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+    if not check_users:
+        await message.answer(text="🤷‍♂️ Нет ни одной транзакции от юзеров.")
+        return
+
+    text = check_users
+    if len(check_users) > max_users:
+        text = check_users[:max_users]
+
+    result_text = ''
+    for uid in text:
+        link = await create_start_link(bot=bot, payload=f"payments_{uid}", encode=True)
+        result_text += f"\n{markdown.hlink(uid, url=link)}"
+
+    if not result_text:
+        logger.error("В переменную result_text ничего не было добавленно, в функции output_users.")
+        return
+
+    await message.answer(
+        text=
+        f"Список юзеров VPN. Нажмите на ссылку ввиде его id, чтобы увидеть все транзакции юзера:\n\n {result_text}",
+        reply_markup=slide_kb(2)
+    )
+
+
 @router.message(Command(commands=['start', 'help', 'admin', 'status']), StateFilter("*"))
 async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
 
@@ -399,3 +434,53 @@ async def help_command(message: Message):
             f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink(title=BotParams.name_project, url=url_support)}\n\n',
         ),
     )
+
+
+@router.message(F.text.func(lambda t: t and t.startswith("/start")))
+async def start_deep_link(message: Message, db_session: AsyncSession):
+    args = message.text.split(maxsplit=1)
+    happening = None
+
+    if len(args) < 2:
+        logger.error("Ошибка не правильная deep ссылка")
+        return
+    
+    happening = decode_payload(args[13])
+    if happening:
+        if happening.startswith("payments_"):
+            user_id = int(happening.split("_")[13])
+            pay_dao = BaseDAO(PaymentHistory, db_session)
+            find_user = await pay_dao.get_one(
+                (PaymentHistory.user_id == user_id,
+                 PaymentHistory.payment_amount,
+                 PaymentHistory.date_paid))
+
+            max_payment = 10
+            paylen = len(find_user.payment_amount)
+            payments = find_user.payment_amount
+            reply_markup = False
+
+            if paylen > max_payment:
+                payments = find_user.payment_amount[:paylen]
+                reply_markup = True
+
+            result_text = ''
+            for pay in payments:
+                result_text += f"\n{pay} | {find_user.date_paid}"
+
+            if not result_text:
+                logger.error("В переменную result_text ничего не было добавленно, в функции start_deep_link.")
+                return
+
+            if find_user:
+                if reply_markup:
+                    await message.answer(
+                        text=result_text,
+                        reply_markup=slide_kb(2)
+                    )
+                else:
+                    await message.answer(
+                        text=result_text
+                    )
+    
+    await message.answer("Добро пожаловать!")

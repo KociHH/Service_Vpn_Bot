@@ -12,12 +12,14 @@ class Month:
     Tree_month = "Tree_month"
 
 class Main:
+    extend = "extend"
     purchase = "purchase"
     advantages = "advantages"
     Support = "Support"
-    Telegram = "Telegram"
     MAIN = "MAIN"
 
+class Other:
+    slide = "slide_"
 
 class Price_and_us_and:
     def __init__(self, price: float | str , month: int, us: int | str = '∞', description: str | None = None):
@@ -48,8 +50,7 @@ def Main_menu() -> InlineKeyboardMarkup:
         callback_data=Main.Support)
     builder.button(
         text='Наш телеграмм канал',
-        url=BotParams.username_channel,
-        callback_data=Main.Telegram)
+        url=BotParams.username_channel)
     
     builder.adjust(1)
     return builder.as_markup()
@@ -82,10 +83,21 @@ def return_kb_support() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def Return_kb_active() -> InlineKeyboardMarkup:
+def Extend_kb(answer: bool) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(
-        text='Наш телеграмм канал',
-        url=BotParams.username_channel,
-        callback_data=Main.Telegram)
+        text="➕ Продлить",
+        callback_data=Main.extend if answer else Main.purchase
+    )
+    return builder.as_markup()
+
+
+def slide_kb(count: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    data = f"{Other.slide}{count}"
+
+    builder.button(
+        text=count,
+        callback_data=data
+    )
     return builder.as_markup()

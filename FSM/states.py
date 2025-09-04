@@ -8,3 +8,4 @@ class Admin(StatesGroup):
     file = State()
     check_file = State()
 
+    user_history_payments = State()
