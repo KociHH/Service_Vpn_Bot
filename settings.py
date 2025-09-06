@@ -24,16 +24,16 @@ class BotParams:
     name_project = os.getenv("NAME_PROJECT")
     admin_id = os.getenv("ADMIN_ID")
     admin_id_test = os.getenv("ADMIN_ID_TEST")
+    username_bot = os.getenv("USERNAME_BOT")
 
 class WEBHOOK:
     port = int(os.getenv('PORT'))
     host = os.getenv('HOST')
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
-    WEBHOOK_PATH = os.getenv('WEBHOOK_PATH')
 
     WEBHOOK_PATH_TIMEWEB = os.getenv('WEBHOOK_PATH_TIMEWEB')
     host_TIMEWEB = os.getenv("HOST_TIMEWEB")
-    port_TIMEWEB = int(os.getenv("POST_TIMEWEB"))
+    port_TIMEWEB = int(os.getenv("PORT_TIMEWEB"))
 
 class SqlLocalhost:
     ip = os.getenv('IP')
@@ -45,14 +45,15 @@ class SqlLocalhost:
 
 logger.info(SqlLocalhost.postgres_url)
 
+class SqlPublic:
+    DATABASE_URL_PUBLIC = os.getenv("DATABASE_URL_PUBLIC")
+
 class RedisBD:
     LOCAL_REDIS = os.getenv("LOCAL_REDIS")
     PROD_REDIS = os.getenv("PROD_REDIS")
 
 class SqlUrlService:
     urls_base = {
-        "DATABASE_URL_PUBLIC": os.getenv('DATABASE_URL_PUBLIC'),
-        "DATABASE_URL_PUBLIC_RENDER": os.getenv('DATABASE_URL_PUBLIC_RENDER'),
         'DATABASE_URL_PUBLIC_TIMEWEB': os.getenv('DATABASE_URL_PUBLIC_TIMEWEB'),
     }
 

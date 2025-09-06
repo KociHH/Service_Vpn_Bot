@@ -14,8 +14,8 @@ from aiogram.client.bot import DefaultBotProperties
 from aiogram.enums import ParseMode
 from sqlalchemy.ext.asyncio import AsyncSession
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
-from db.middlewares.middle import async_session as async_session_factory
-from keyboards.inline_keyboard.main_inline_keyboard import Extend_kb
+from db.tables import async_session as async_session_factory
+from keyboards.inline_keyboard.common import Extend_kb
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -39,7 +39,7 @@ def notify_expiring_subscriptions():
         # истекает через 3 дня
         try:
             checked_users = 0
-            expiring_subscriptions = await sub_dao.get_all(end_date == target_date.date())
+            expiring_subscriptions = await sub_dao.get_all(end_date == target_date)
 
             for subscription in expiring_subscriptions:
                 user = await user_dao.get_one(User.user_id == subscription.user_id)

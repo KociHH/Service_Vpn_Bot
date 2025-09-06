@@ -1,18 +1,16 @@
 import logging
 import uuid
-import pytz
-from typing import Union
 import yookassa
-from aiogram.types import CallbackQuery, Message
-from sqlalchemy import select
+from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 from yookassa import Configuration, Payment
 from aiogram import Router
-from utils.other import yookassa_bool
+from utils.work import yookassa_bool
 import settings
-from db.middlewares.middle import logger
-from db.tables import subscriber, Subscription
+from db.tables import subscriber
 
+
+logger = logging.getLogger(__name__)
 
 def configure_yookassa(true_module):
     if true_module:

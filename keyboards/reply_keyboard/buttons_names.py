@@ -5,4 +5,13 @@ class MainButtons:
     info_payments = "💲 Информация о платежах"
 
 class NewsletterButtons:
-    change_text = '📝 Изменить текст'
+    change_message = '📝 Изменить сообщение'
+    change_text = 'Изменить текст'
+    change_media = 'Изменить медиа'
+
+class PaymentsUsers:
+    user_payments = "👤 Конкретно у юзера"
+    all_payments = "🧾 Все платежи за все время"
+
+class OtherEWhere:
+    back = '⬅️ Вернуться'

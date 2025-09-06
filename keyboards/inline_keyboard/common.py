@@ -92,12 +92,38 @@ def Extend_kb(answer: bool) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def slide_kb(count: int) -> InlineKeyboardMarkup:
+def slide_kb(
+    count: int, 
+    operation_name: str, 
+    user_id: int | str | None,
+    empty_button_left: bool = False,
+    empty_button_right: bool = False
+    ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    data = f"{Other.slide}{count}"
+    if user_id and user_id != None:
+        user_id = f'{user_id}'
+    else:
+        user_id = 'None'
+
+    left_data = f"{Other.slide}_{operation_name}_{user_id}_{count - 1}"
+    text_bt_left = f"{count - 1} ◀️"
+    if empty_button_left:
+        text_bt_left = "⠀"
+        left_data = "empty_button"
+
+    right_data = f"{Other.slide}_{operation_name}_{user_id}_{count + 1}"
+    text_bt_right = f"{count + 1} ▶️"
+    if empty_button_right:
+        text_bt_right = "⠀"
+        right_data = "empty_button"
 
     builder.button(
-        text=count,
-        callback_data=data
+        text=text_bt_left,
+        callback_data=left_data
     )
+    builder.button(
+        text=text_bt_right,
+        callback_data=right_data,
+    )
+    builder.adjust(2)
     return builder.as_markup()

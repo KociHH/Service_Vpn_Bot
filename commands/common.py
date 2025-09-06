@@ -6,20 +6,19 @@ from aiogram.types import Message, ReplyKeyboardRemove
 from aiogram.utils import markdown
 from aiogram.filters import Command, StateFilter
 from aiogram import Router
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
 from settings import BotParams
-from FSM.states import Admin
+from FSM.states import Admin, PaymentsUserState, NewSletterState
 from db.tables import User, Subscription, Images, PaymentHistory
-from keyboards.inline_keyboard.main_inline_keyboard import Main_menu, slide_kb
-from keyboards.reply_keyboard.admin_panel import admin_kb, main_menu_kb, yes_no_kb, yes_no, exit_
+from keyboards.inline_keyboard.common import Main_menu, slide_kb
+from keyboards.reply_keyboard.admin_panel import admin_kb, main_menu_kb, yes_no_kb, yes_no, exit_, payments_kb
 from utils.load_image import ImageProcessing
-from utils.text_message import samples_
-from utils.other import url_support
+from utils.other import samples_
+from utils.work import url_support
+from utils.other import create_slide_payments_bt, OperationNames
 from sqlalchemy.ext.asyncio import AsyncSession
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
-from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons
+from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons, OtherEWhere, PaymentsUsers
 from aiogram.utils.deep_linking import decode_payload, create_start_link
 from aiogram.client.bot import DefaultBotProperties
 from aiogram import Bot
@@ -33,7 +32,32 @@ def is_admin(message: Message) -> bool:
     return str(message.from_user.id) in [admin_id.strip() for admin_id in BotParams.admin_ids_str.split(',')]
 
 
-@router.message(F.text == '⬅️ Вернуться', StateFilter("*"))
+@router.message(F.text.func(lambda t: t and t.startswith("/start") and len(t) >= 10))
+async def start_deep_link(message: Message, db_session: AsyncSession):
+    args = message.text.split(maxsplit=1)
+
+    if len(args) < 2:
+        await start_handler(message, db_session)
+        return
+    
+    happening = args[1]
+    if happening:
+        if happening.startswith(f"{OperationNames.payments_user}_"):
+            user_id = int(happening.split("_")[1])
+
+            if str(message.from_user.id) not in BotParams.admin_ids_str:
+                return
+
+            await create_slide_payments_bt(
+                db_session,
+                user_id,
+                message,
+                1,
+                OperationNames.payments_user,
+            )
+
+
+@router.message(F.text == OtherEWhere.back, StateFilter("*"))
 async def back(message: Message, state: FSMContext):
     await admin(message=message, state=state)
 
@@ -159,153 +183,221 @@ async def check_no(message: Message, state: FSMContext):
 
 @router.message(F.text == MainButtons.newsletter, StateFilter(Admin.admin))
 async def rassilka(message: Message, state: FSMContext,):
-    await state.set_state(Admin.rassilka)
+    await state.set_state(NewSletterState.rassilka)
 
     await message.answer(
-        'Введите текст рассылки:',
+        'Введите текст, фото, файл, видио, GIF и тд. рассылки:',
         reply_markup=exit_()
     )
 
 
-@router.message(StateFilter(Admin.rassilka))
-async def edit_rassilka(message: Message, state: FSMContext,):
-    await state.set_state(Admin.chek_rassilka)
+@router.message(StateFilter(NewSletterState.rassilka))
+async def edit_rassilka(message: Message, state: FSMContext):
     photo_id = message.photo[-1].file_id if message.photo else None
     gif_id = message.animation.file_id if message.animation else None
+    document_id = message.document.file_id if message.document else None
+    video_id = message.video.file_id if message.video else None
+
+    previous_data = await state.get_data()
+    previous_photo_id = previous_data.get('photo_id')
+    previous_gif_id = previous_data.get('gif_id')
+    previous_document_id = previous_data.get('document_id')
+    previous_video_id = previous_data.get('video_id')
+
     await state.update_data({
-        "text": message.text or None,
-        "photo_id": photo_id,
+        "text": message.text,
+        "photo_id": photo_id or previous_photo_id,
         "caption": message.caption,
-        "gif_id": gif_id
+        "gif_id": gif_id or previous_gif_id,
+        "document_id": document_id or previous_document_id,
+        "video_id": video_id or previous_video_id,
     })
     await message.answer(
-        text=f'Вы уверены, что хотите отправить? Если нет то нажмите на кнопку [📝 Изменить текст]',
+        text=f'Вы уверены, что хотите отправить? Если нет то нажмите на кнопку: {NewsletterButtons.change_message}',
         reply_markup=yes_no_kb()
     )
+    await state.set_state(NewSletterState.check_rassilka)
 
 
-samples = '________________________________'
-
-@router.message(StateFilter(Admin.chek_rassilka), F.text == 'Да')
+@router.message(StateFilter(NewSletterState.check_rassilka), F.text == 'Да')
 async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSession):
     data = await state.get_data()
     text = data.get('text')
     photo_id = data.get('photo_id')
     caption = data.get('caption')
     gif_id = data.get('gif_id')
+    document_id = data.get('document_id')
+    video_id = data.get('video_id')
 
     sent_count = 0
     error_count = 0
 
     user_dao = BaseDAO(User, db_session)
-    total_users = await len(user_dao.get_all_column_values(User.user_id))
-    for user in total_users:
+    all_users_ids = await user_dao.get_all_column_values(User.user_id)
+    total_users = len(all_users_ids)
+    for user_id_single in all_users_ids:
         await asyncio.sleep(0.2)
         try:
             if photo_id:
                 await message.bot.send_photo(
-                    chat_id=user,
+                    chat_id=user_id_single,
                     photo=photo_id,
                     caption=caption or text,
                     reply_markup=ReplyKeyboardRemove()
                 )
-
             elif gif_id:
                 await message.bot.send_animation(
-                     chat_id=user,
+                     chat_id=user_id_single,
                      animation=gif_id,
                      caption=caption or text,
-
+                )
+            elif video_id:
+                await message.bot.send_video(
+                    chat_id=user_id_single,
+                    video=video_id,
+                    caption=caption or text,
+                )
+            elif document_id:
+                await message.bot.send_document(
+                    chat_id=user_id_single,
+                    document=document_id,
+                    caption=caption or text,
                 )
             else:
                 await message.bot.send_message(
-                    chat_id=user,
+                    chat_id=user_id_single,
                     text=text
                 )
             sent_count += 1
 
         except Exception as e:
             error_count += 1
-            logging.error(f"Ошибка отправки сообщения пользователю {user}: {e}")
+            logging.error(f"Ошибка отправки сообщения пользователю {user_id_single}: {e}")
 
+    result_text = [
+        f"📊 Статистика рассылки:\n",
+        f"👥 Всего пользователей:ㅤ{markdown.hbold(str(total_users))}\n",
+        f"✅ Успешно отправлено:ㅤ{markdown.hbold(str(sent_count))}\n",
+        f"❌ Не было отправленно:ㅤ{markdown.hbold(str(error_count))}",
+    ]
 
     await message.answer(
-        f"📊 Статистика рассылки:\n"
-        f"{samples}\n"
-        f"👥 Всего пользователей:ㅤ{markdown.hbold(str(total_users))}\n"
-        f"{samples}\n"
-        f"✅ Успешно отправлено:ㅤ{markdown.hbold(str(sent_count))}\n"
-        f"{samples}\n"
-        f"❌ Не было отправленно:ㅤ{markdown.hbold(str(error_count))}",
-        reply_markup=ReplyKeyboardRemove()
+        samples_(result_text),
+        reply_markup=main_menu_kb()
     )
-    await state.clear()
+    await state.set_state(Admin.admin)
 
 
-@router.message(StateFilter(Admin.chek_rassilka), F.text == NewsletterButtons.change_text)
+@router.message(F.text == NewsletterButtons.change_text, StateFilter(NewSletterState.change_content))
+async def change_text_newsletter(message: Message, state: FSMContext):
+    pass
+
+
+@router.message(F.text == NewsletterButtons.change_media, StateFilter(NewSletterState.change_content))
+async def change_text_newsletter(message: Message, state: FSMContext):
+    pass
+
+
+@router.message(StateFilter(NewSletterState.check_rassilka), F.text == NewsletterButtons.change_message)
 async def edit_text_rassilka(message: Message, state: FSMContext):
     data = await state.get_data()
     photo_id = data.get('photo_id')
     text = data.get('text')
     caption = data.get('caption')
     gif_id = data.get('gif_id')
+    document_id = data.get('document_id')
+    video_id = data.get('video_id')
 
     if photo_id:
         await message.answer_photo(
             photo=photo_id,
-            caption=f"{markdown.hbold('Текущее сообщение с фото:')}\n\n {caption or text}"
+            caption=f"{markdown.hbold('Текущее сообщение с фото:')}\n\n {caption or text}",
         )
     elif gif_id:
         await message.answer_animation(
             animation=gif_id,
-            caption=f"{markdown.hbold('Текущее сообщение с GIF:')}\n\n {caption or text}"
+            caption=f"{markdown.hbold('Текущее сообщение с GIF:')}\n\n {caption or text}",
     )
+    elif video_id:
+        await message.answer_video(
+            video=video_id,
+            caption=f"{markdown.hbold('Текущее сообщение с видео:')}\n\n {caption or text}",
+        )
+    elif document_id:
+        await message.answer_document(
+            document=document_id,
+            caption=f"{markdown.hbold('Текущее сообщение с документом:')}\n\n {caption or text}",
+        )
     else:
         await message.answer(
             text=f'{markdown.hbold("Текущее сообщение:")}\n\n{text}',
-            reply_markup=ReplyKeyboardRemove()
         )
 
     await message.answer(
-        'Введите исправный текст рассылки:',
+        'Пришлите исправное сообщение для рассылки:',
         reply_markup=ReplyKeyboardRemove()
     )
 
-    await state.set_state(Admin.rassilka)
+    await state.update_data({
+        "photo_id": photo_id,
+        "gif_id": gif_id,
+        "document_id": document_id,
+        "video_id": video_id,
+    })
+    await state.set_state(NewSletterState.rassilka)
 
 
 @router.message(F.text == MainButtons.info_payments, StateFilter(Admin.admin))
-async def output_users(state: FSMContext, message: Message, db_session: AsyncSession):
+async def output_users(message: Message, state: FSMContext):
+    await message.answer(
+        text=
+        f"{PaymentsUsers.user_payments}:\n"
+        f"Присылает список {markdown.hbold("id")} всех юзеров кто делал платежи.\n"
+        f"Нажимая на ссылку ввиде его {markdown.hbold('id')}, то можно увидеть все его транзакции.\n\n"
+        f"{PaymentsUsers.all_payments}:\n"
+        f"Присылает список {markdown.hbold('всех')} транзакций за все время.",
+        reply_markup=payments_kb(),
+    )
+    await state.set_state(PaymentsUserState.payments_menu)
+
+
+@router.message(F.text == PaymentsUsers.all_payments, StateFilter(PaymentsUserState.payments_menu))
+async def all_payments_processing(message: Message, db_session: AsyncSession):
     pay_dao = BaseDAO(PaymentHistory, db_session)
     check_users = await pay_dao.get_all_column_values(PaymentHistory.user_id)
-    max_users = 10
-    bot = Bot(token=BotParams.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     if not check_users:
         await message.answer(text="🤷‍♂️ Нет ни одной транзакции от юзеров.")
         return
 
-    text = check_users
-    if len(check_users) > max_users:
-        text = check_users[:max_users]
-
-    result_text = ''
-    for uid in text:
-        link = await create_start_link(bot=bot, payload=f"payments_{uid}", encode=True)
-        result_text += f"\n{markdown.hlink(uid, url=link)}"
-
-    if not result_text:
-        logger.error("В переменную result_text ничего не было добавленно, в функции output_users.")
-        return
-
-    await message.answer(
-        text=
-        f"Список юзеров VPN. Нажмите на ссылку ввиде его id, чтобы увидеть все транзакции юзера:\n\n {result_text}",
-        reply_markup=slide_kb(2)
+    await create_slide_payments_bt(
+        db_session,
+        None,
+        message,
+        1,
+        OperationNames.all_payments_users,
     )
 
 
-@router.message(Command(commands=['start', 'help', 'admin', 'status']), StateFilter("*"))
+@router.message(F.text == PaymentsUsers.user_payments, StateFilter(PaymentsUserState.payments_menu))
+async def user_payments_processing(message: Message, db_session: AsyncSession):
+    pay_dao = BaseDAO(PaymentHistory, db_session)
+    check_users = await pay_dao.get_all_column_values(PaymentHistory.user_id)
+
+    if not check_users:
+        await message.answer(text="🤷‍♂️ Нет ни одной транзакции от юзеров.")
+        return
+
+    await create_slide_payments_bt(
+        db_session,
+        None,
+        message,
+        1,
+        OperationNames.uids_payments_link,
+    )
+
+
+@router.message(Command(commands=['help', 'admin', 'status', 'start']), StateFilter("*"))
 async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
 
     if message.text == '/start':
@@ -421,7 +513,7 @@ async def status_command(message: Message, db_session: AsyncSession):
             f"📅 Дата окончания: {markdown.hcode(subscription.end_date)}",
             f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'Не активный')}"]
         await message.answer(
-            await samples_(l)
+            samples_(l)
         )
     else:
         await message.answer('🧐 Вы в данный момент не пользуютесь (пользовались) нашими услугами.')
@@ -434,53 +526,4 @@ async def help_command(message: Message):
             f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink(title=BotParams.name_project, url=url_support)}\n\n',
         ),
     )
-
-
-@router.message(F.text.func(lambda t: t and t.startswith("/start")))
-async def start_deep_link(message: Message, db_session: AsyncSession):
-    args = message.text.split(maxsplit=1)
-    happening = None
-
-    if len(args) < 2:
-        logger.error("Ошибка не правильная deep ссылка")
-        return
-    
-    happening = decode_payload(args[13])
-    if happening:
-        if happening.startswith("payments_"):
-            user_id = int(happening.split("_")[13])
-            pay_dao = BaseDAO(PaymentHistory, db_session)
-            find_user = await pay_dao.get_one(
-                (PaymentHistory.user_id == user_id,
-                 PaymentHistory.payment_amount,
-                 PaymentHistory.date_paid))
-
-            max_payment = 10
-            paylen = len(find_user.payment_amount)
-            payments = find_user.payment_amount
-            reply_markup = False
-
-            if paylen > max_payment:
-                payments = find_user.payment_amount[:paylen]
-                reply_markup = True
-
-            result_text = ''
-            for pay in payments:
-                result_text += f"\n{pay} | {find_user.date_paid}"
-
-            if not result_text:
-                logger.error("В переменную result_text ничего не было добавленно, в функции start_deep_link.")
-                return
-
-            if find_user:
-                if reply_markup:
-                    await message.answer(
-                        text=result_text,
-                        reply_markup=slide_kb(2)
-                    )
-                else:
-                    await message.answer(
-                        text=result_text
-                    )
-    
-    await message.answer("Добро пожаловать!")
+            

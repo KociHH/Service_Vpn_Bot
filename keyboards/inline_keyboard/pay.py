@@ -5,7 +5,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from typing import Any
 from db.middlewares.middle import logger
 from callback_handlers.pay_func.pay_yookassa import create_oplata
-from keyboards.inline_keyboard.main_inline_keyboard import Main, info, info3, info2, Month
+from keyboards.inline_keyboard.common import Main, info, info3, info2, Month
 
 
 router = Router()

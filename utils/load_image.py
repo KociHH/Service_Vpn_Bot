@@ -5,7 +5,6 @@ import random
 import re
 import subprocess
 import zipfile
-from db.middlewares.middle import async_session
 from aiogram.types import InputFile, BufferedInputFile, ReplyKeyboardRemove, CallbackQuery, InlineKeyboardButton, \
     InlineKeyboardMarkup
 from aiogram.utils import markdown
@@ -14,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.tables import Images, Subscription
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from settings import BotParams
-from utils.other import currently_msk
+from utils.work import currently_msk
 
 logger = logging.getLogger(__name__)
 UNRAR_PATH = r"C:\unrar\UnRAR.exe"

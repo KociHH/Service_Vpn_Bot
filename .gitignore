@@ -9,7 +9,6 @@ test_file.py
 .env
 cloud.ini
 app/
-.env
 .vscode/
 *.pyc
 *.pyo

@@ -3,14 +3,20 @@ from aiogram import Router
 from aiogram.types import CallbackQuery
 from aiogram.utils import markdown
 from db.middlewares.middle import logger
-from db.tables import User
-from keyboards.inline_keyboard.main_inline_keyboard import Main, Main_menu, Month_kb, return_kb_support, \
+from db.tables import PaymentHistory, User
+from keyboards.inline_keyboard.common import Main, Main_menu, Month_kb, return_kb_support, \
     Month, info2, info, info3, info_price_249, info_price_579, info_price_979, Other
-from keyboards.inline_keyboard.pay_inline_keyboard import CashMultiBt, CashMenu
+from keyboards.inline_keyboard.pay import CashMultiBt, CashMenu
 from settings import BotParams
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from sqlalchemy.ext.asyncio import AsyncSession
-from utils.other import url_support
+from utils.work import url_support
+from utils.other import create_slide_payments_bt, OperationNames
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 router = Router()
 
@@ -140,5 +146,36 @@ async def purchase_Support(call: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith(Other.slide))
-async def slide_processing():
-    pass
+async def slide_processing(call: CallbackQuery, db_session: AsyncSession):    
+    try:
+        data_args = call.data.split("_")
+        operation_name = data_args[2]
+        user_id = data_args[3]
+        slide_count = int(data_args[4])
+        print(f"call: {call.data} user_id:{user_id} operation_name: {operation_name} slide_count: {slide_count}")
+
+        if user_id == 'None':
+            user_id = None
+        else:
+            user_id = int(user_id)
+
+        if not any([slide_count, operation_name]):
+            logger.error(f"Нет числа слайда либо не получен operation_name: {data_args}")
+            return
+
+        await call.answer()
+        await create_slide_payments_bt(
+            db_session,
+            user_id,
+            call,
+            slide_count,
+            operation_name,
+            slide_count
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в функции slide_processing: {e}")
+        return
+
+@router.callback_query(F.data == "empty_button")
+async def empty_button(call: CallbackQuery):
+    await call.answer("Empty button")

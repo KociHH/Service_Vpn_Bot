@@ -1,16 +1,25 @@
 import asyncio
 from datetime import datetime, timedelta
 import pytz
-from alembic.util import status
 from sqlalchemy import select, LargeBinary
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, func, DateTime
-from db.middlewares.middle import async_session
-from db.middlewares.middle import engine, logger
-from utils.other import currently_msk
+from sqlalchemy import  pool
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from utils.work import url_db, currently_msk
+import logging
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
-from typing import AsyncGenerator
+
+logger = logging.getLogger(__name__)
+
+engine = create_async_engine(
+    url_db, 
+    future=True, 
+    echo=False, 
+    poolclass=pool.NullPool, 
+)
+async_session = async_sessionmaker(engine, expire_on_commit=False,  class_=AsyncSession)
 
 Base = declarative_base()
 
@@ -22,8 +31,13 @@ class Images(Base):
     name = Column(String, nullable=True)
 
 class User(Base):
+    """
+    user_id: int
+    user_name: str | None
+    full_name: str | None
+    admin_status: str = 'user'
+    """
     __tablename__ = "users"
-
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, unique=True, nullable=False)
     user_name = Column(String, nullable=True)
@@ -31,6 +45,12 @@ class User(Base):
     admin_status = Column(String, nullable=False, default='user')
 
 class Subscription(Base):
+    """
+    user_id: int
+    start_date: datetime
+    end_date: datetime
+    status: str
+    """
     __tablename__ = "subscribers"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False, unique=True)
@@ -39,6 +59,12 @@ class Subscription(Base):
     status = Column(String, nullable=False, default="not active")
 
 class PaymentHistory(Base):
+    """
+    user_id: int
+    month: int
+    date_paid: datetime
+    payment_amount: int
+    """
     # множество
     __tablename__ = "payment_history"
 

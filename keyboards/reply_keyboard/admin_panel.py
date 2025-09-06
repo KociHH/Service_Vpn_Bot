@@ -1,7 +1,7 @@
 from aiogram.types import ReplyKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from settings import BotParams
-from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons
+from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons, PaymentsUsers, OtherEWhere
 
 def admin_kb() -> ReplyKeyboardMarkup:
     admin_ids = BotParams.admin_ids_str
@@ -34,14 +34,29 @@ def yes_no() -> ReplyKeyboardMarkup:
 def exit_() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(
-        text='⬅️ Вернуться'
+        text=OtherEWhere.back
     )
     return builder.as_markup(resize_keyboard=True)
 
-# create r.button
 def yes_no_kb() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(text='Да')
-    builder.button(text=NewsletterButtons.change_text)
+    builder.button(text=NewsletterButtons.change_message)
     builder.adjust(2)
+    return builder.as_markup(resize_keyboard=True)
+
+def payments_kb() -> ReplyKeyboardMarkup:
+    builder = ReplyKeyboardBuilder()
+    builder.button(text=PaymentsUsers.user_payments)
+    builder.button(text=PaymentsUsers.all_payments)
+    builder.button(text=OtherEWhere.back)
+    builder.adjust(2, 1)
+    return builder.as_markup(resize_keyboard=True)
+
+def change_content_send_bt() -> ReplyKeyboardMarkup:
+    builder = ReplyKeyboardBuilder()
+    builder.button(text=PaymentsUsers.user_payments)
+    builder.button(text=PaymentsUsers.all_payments)
+    builder.button(text=OtherEWhere.back)
+    builder.adjust(2, 1)
     return builder.as_markup(resize_keyboard=True)

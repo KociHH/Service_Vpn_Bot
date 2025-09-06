@@ -9,16 +9,14 @@ from aiogram.utils import markdown
 from aiogram import Router
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession
-from utils.other import currently_msk, username_support
+from settings import BotParams
+from utils.work import currently_msk, username_support, admin_id
 from callback_handlers.pay_func.pay_yookassa import check
-from keyboards.inline_keyboard.pay_inline_keyboard import CashMenu, info_month
-from keyboards.inline_keyboard.main_inline_keyboard import info, info3, info2, Main
+from keyboards.inline_keyboard.pay import CashMenu, info_month
 from utils.load_image import ImageProcessing
-from db.middlewares.middle import async_session
 from db.tables import Images, PaymentHistory
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from aiogram import F
-from utils.other import admin_id
 
 logger = logging.getLogger(__name__)
 router = Router(name=__name__)
@@ -152,8 +150,8 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
             f'id: {id_img}\n\n'
 
             f"{markdown.hbold('Время')}:\n"
-            f"Время первого платежа: {start}\n"
-            f"Истекает: {end}\n"
+            f"Время первого платежа: {markdown.hcode(start)}\n"
+            f"Истекает: {markdown.hcode(end)}\n"
         )
         logger.info(
             f'Пользователь успешно оплатил на сумму {payment_amount}₽.:\n\n'                  
@@ -173,5 +171,5 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
         logging.error(f'Ошибка при проверке оплаты: {e}')
         await call.answer(
             "❗ Произошла ошибка при проверке платежа.\n"
-            "Пожалуйста, попробуйте позже или обратитесь в поддержку - @ammosupport\n"
+            f"Пожалуйста, попробуйте позже или обратитесь в поддержку - @{username_support}\n"
         )

@@ -1,21 +1,12 @@
 import asyncio
 import logging
 from aiogram import BaseMiddleware
-from sqlalchemy import  pool
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from typing import Callable, Any
 from aiogram.types import TelegramObject
-from utils.other import url_db
+import logging
 
 logger = logging.getLogger(__name__)
-
-engine = create_async_engine(
-    url_db, 
-    future=True, 
-    echo=False, 
-    poolclass=pool.NullPool, 
-)
-async_session = async_sessionmaker(engine, expire_on_commit=False,  class_=AsyncSession)
 
 
 class DatabaseMiddleware(BaseMiddleware):
@@ -31,11 +22,6 @@ class DatabaseMiddleware(BaseMiddleware):
     ) -> Any:
         async with self.session_factory() as session:
             data["db_session"] = session
-            try:
-                result = await handler(event, data)
-                await session.commit()
-                return result
-            except Exception as e:
-                    await session.rollback()
-                    logger.error(f"Ошибка при обработке запроса: {e}")
-                    raise Exception(f'Ошибка при обработке запроса: {e}') from e
+            result = await handler(event, data)
+            await session.commit()
+            return result
