@@ -129,11 +129,11 @@ async def create_slide_payments_bt(
     return
 
 
-def samples_(texts: list[str]):
+def samples_(texts: list[str], style: bool = False):
     t = '—'
     result = []
     for text in texts:
         text = str(text).strip()
         line = t * (len(text) // 2)
-        result.append(f'{text}\n{line}')
+        result.append(f'{text}\n{line if not any([style, style == True]) else markdown.hbold(line)}')
     return "\n\n".join(result)

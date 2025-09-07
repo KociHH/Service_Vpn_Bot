@@ -6,8 +6,9 @@ class MainButtons:
 
 class NewsletterButtons:
     change_message = '📝 Изменить сообщение'
-    change_text = 'Изменить текст'
-    change_media = 'Изменить медиа'
+    change_text = '✍️ Изменить текст'
+    change_all = '🎞 Изменить медиа'
+    continue_action = "➡️ Продолжить"
 
 class PaymentsUsers:
     user_payments = "👤 Конкретно у юзера"

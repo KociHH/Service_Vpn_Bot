@@ -12,6 +12,8 @@ class NewSletterState(StatesGroup):
     rassilka = State()
     check_rassilka = State()
     change_content = State()
+    change_text_caption = State()
+    waiting_for_media_group_end = State()
 
 
 class PaymentsUserState(StatesGroup):

@@ -11,7 +11,7 @@ from settings import BotParams
 from FSM.states import Admin, PaymentsUserState, NewSletterState
 from db.tables import User, Subscription, Images, PaymentHistory
 from keyboards.inline_keyboard.common import Main_menu, slide_kb
-from keyboards.reply_keyboard.admin_panel import admin_kb, main_menu_kb, yes_no_kb, yes_no, exit_, payments_kb
+from keyboards.reply_keyboard.admin_panel import admin_kb, continue_bt, main_menu_kb, yes_no_kb, yes_no, exit_, payments_kb, change_content_send_bt
 from utils.load_image import ImageProcessing
 from utils.other import samples_
 from utils.work import url_support
@@ -23,6 +23,7 @@ from aiogram.utils.deep_linking import decode_payload, create_start_link
 from aiogram.client.bot import DefaultBotProperties
 from aiogram import Bot
 from aiogram.enums import ParseMode
+from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaDocument, InputMediaAnimation
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -184,50 +185,139 @@ async def check_no(message: Message, state: FSMContext):
 @router.message(F.text == MainButtons.newsletter, StateFilter(Admin.admin))
 async def rassilka(message: Message, state: FSMContext,):
     await state.set_state(NewSletterState.rassilka)
+    await state.update_data(media_group_items=[], media_items=[], text=None, caption=None)
 
     await message.answer(
-        'Введите текст, фото, файл, видио, GIF и тд. рассылки:',
+        'Введите текст, фото, файл, видио, GIF и тд. рассылки:\n\n'
+        '❗️ Важно: ❗️\n'
+        f'При отправке несколько медиа обязательно {markdown.hbold('группируйте')} их, а то отправится первое не группированное медия.\n'
+        f'При отправке {markdown.hbold("документа/файла")} и тд. с {markdown.hbold("фото/видио")}, то группировки {markdown.hbold("не")} пройзойдет!\n'
+        f"При отправке {markdown.hbold('документа/файла')} больше {markdown.hbold('1')} и тд. с подписью, то отправится {markdown.hbold('подпись!')}",
         reply_markup=exit_()
     )
 
 
-@router.message(StateFilter(NewSletterState.rassilka))
+@router.message(StateFilter(NewSletterState.rassilka, NewSletterState.change_text_caption))
 async def edit_rassilka(message: Message, state: FSMContext):
-    photo_id = message.photo[-1].file_id if message.photo else None
-    gif_id = message.animation.file_id if message.animation else None
-    document_id = message.document.file_id if message.document else None
-    video_id = message.video.file_id if message.video else None
+    updated_state_data = {}
+    state_data = await state.get_data()
+    media_items_data: dict | None = state_data.get("media_items")
 
-    previous_data = await state.get_data()
-    previous_photo_id = previous_data.get('photo_id')
-    previous_gif_id = previous_data.get('gif_id')
-    previous_document_id = previous_data.get('document_id')
-    previous_video_id = previous_data.get('video_id')
+    if message.media_group_id:
+        media_group_items = (await state.get_data()).get('media_group_items', [])
+        
+        media_items = None
+        if message.photo:
+            media_items = {'type': 'photo', 'file_id': message.photo[-1].file_id}
+        elif message.animation:
+            media_items = {'type': 'animation', 'file_id': message.animation.file_id}
+        elif message.document:
+            media_items = {'type': 'document', 'file_id': message.document.file_id}
+        elif message.video:
+            media_items = {'type': 'video', 'file_id': message.video.file_id}
+        
+        if media_items:
+            media_group_items.append(media_items)
+            current_caption = (await state.get_data()).get('caption')
+            new_caption = message.caption if message.caption is not None else (current_caption if current_caption is not None else "")
+            await state.update_data({'media_group_items': media_group_items, 'caption': new_caption})
+            await state.set_state(NewSletterState.waiting_for_media_group_end)
+            await message.answer(
+                "✅ Все медиа успешно обработанны.\n"
+                "Нажмите на кнопку в панели либо введите любой текст чтобы продолжить.\n",
+                reply_markup=continue_bt()
+                )
+    else:
+        if not media_items_data:
+            current_media_items = []
 
-    await state.update_data({
-        "text": message.text,
-        "photo_id": photo_id or previous_photo_id,
-        "caption": message.caption,
-        "gif_id": gif_id or previous_gif_id,
-        "document_id": document_id or previous_document_id,
-        "video_id": video_id or previous_video_id,
-    })
-    await message.answer(
-        text=f'Вы уверены, что хотите отправить? Если нет то нажмите на кнопку: {NewsletterButtons.change_message}',
-        reply_markup=yes_no_kb()
-    )
-    await state.set_state(NewSletterState.check_rassilka)
+            if message.photo:
+                current_media_items.append({'type': 'photo', 'file_id': message.photo[-1].file_id})
+            if message.animation:
+                current_media_items.append({'type': 'animation', 'file_id': message.animation.file_id})
+            if message.document:
+                current_media_items.append({'type': 'document', 'file_id': message.document.file_id})
+            if message.video:
+                current_media_items.append({'type': 'video', 'file_id': message.video.file_id})
+        else:
+            current_media_items = media_items_data
+
+        if current_media_items:
+            caption_changed = None
+            if await state.get_state() == NewSletterState.change_text_caption:
+                caption_changed = message.text
+
+            updated_state_data['media_items'] = current_media_items
+            updated_state_data['caption'] = message.caption or caption_changed
+            updated_state_data['text'] = None
+            logger.info(f"[edit_rassilka] Одиночный медиафайл. medi-items: {current_media_items}, caption: {updated_state_data['caption']}")
+        elif message.text is not None:
+            updated_state_data['text'] = message.text
+            updated_state_data['media_items'] = []
+            updated_state_data['caption'] = None
+            logger.info(f"[edit_rassilka] Только текст. text: {updated_state_data['text']}")
+        
+        await state.update_data(updated_state_data)
+
+        await message.answer(
+            text=f'Вы уверены, что хотите отправить? Если нет то нажмите на кнопку: {NewsletterButtons.change_message}',
+            reply_markup=yes_no_kb()
+        )
+        await state.set_state(NewSletterState.check_rassilka)
+
+
+@router.message(StateFilter(NewSletterState.waiting_for_media_group_end), F.media_group_id.is_not(None))
+async def handle_media_group_items(message: Message, state: FSMContext):
+    state_data = await state.get_data()
+    media_group_items = state_data.get('media_group_items', [])
+
+    media_items = None
+    if message.photo:
+        media_items = {'type': 'photo', 'file_id': message.photo[-1].file_id}
+    elif message.animation:
+        media_items = {'type': 'animation', 'file_id': message.animation.file_id}
+    elif message.document:
+        media_items = {'type': 'document', 'file_id': message.document.file_id}
+    elif message.video:
+        media_items = {'type': 'video', 'file_id': message.video.file_id}
+
+    if media_items:
+        media_group_items.append(media_items)
+        current_caption = state_data.get('caption')
+        new_caption = message.caption if message.caption is not None else (current_caption if current_caption is not None else "")
+        await state.update_data({
+            'media_group_items': media_group_items, 
+            'caption': new_caption
+            })
+
+
+@router.message(StateFilter(NewSletterState.waiting_for_media_group_end), F.media_group_id.is_(None))
+async def finalize_media_group(message: Message, state: FSMContext):
+    full_data = await state.get_data()
+    media_group_items = full_data.get('media_group_items', [])
+    caption = full_data.get('caption')
+
+    if media_group_items:
+        await state.update_data({
+            'media_items': media_group_items,
+            'text': None,
+            'caption': caption
+        })
+        await state.set_state(NewSletterState.check_rassilka)
+        await message.answer(
+            text=f"Вы уверены, что хотите отправить? Если нет то нажмите на кнопку: {NewsletterButtons.change_message}",
+            reply_markup=yes_no_kb()
+        )
+    else:
+        await state.set_state(NewSletterState.rassilka)
 
 
 @router.message(StateFilter(NewSletterState.check_rassilka), F.text == 'Да')
 async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSession):
     data = await state.get_data()
     text = data.get('text')
-    photo_id = data.get('photo_id')
+    media_items = data.get('media_items', [])
     caption = data.get('caption')
-    gif_id = data.get('gif_id')
-    document_id = data.get('document_id')
-    video_id = data.get('video_id')
 
     sent_count = 0
     error_count = 0
@@ -238,32 +328,50 @@ async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSe
     for user_id_single in all_users_ids:
         await asyncio.sleep(0.2)
         try:
-            if photo_id:
-                await message.bot.send_photo(
-                    chat_id=user_id_single,
-                    photo=photo_id,
-                    caption=caption or text,
-                    reply_markup=ReplyKeyboardRemove()
-                )
-            elif gif_id:
-                await message.bot.send_animation(
-                     chat_id=user_id_single,
-                     animation=gif_id,
-                     caption=caption or text,
-                )
-            elif video_id:
-                await message.bot.send_video(
-                    chat_id=user_id_single,
-                    video=video_id,
-                    caption=caption or text,
-                )
-            elif document_id:
-                await message.bot.send_document(
-                    chat_id=user_id_single,
-                    document=document_id,
-                    caption=caption or text,
-                )
-            else:
+            if media_items:
+                if len(media_items) > 1:
+                    media_group = []
+                    for i, media in enumerate(media_items):
+                        if media['type'] == 'photo':
+                            media_group.append(InputMediaPhoto(media=media['file_id'], caption=caption or text if i == 0 else None))
+                        elif media['type'] == 'animation':
+                            media_group.append(InputMediaAnimation(media=media['file_id'], caption=caption or text if i == 0 else None))
+                        elif media['type'] == 'video':
+                            media_group.append(InputMediaVideo(media=media['file_id'], caption=caption or text if i == 0 else None))
+                        elif media['type'] == 'document':
+                            media_group.append(InputMediaDocument(media=media['file_id'], caption=caption or text if i == 0 else None))
+                    await message.bot.send_media_group(
+                        chat_id=user_id_single,
+                        media=media_group
+                    )
+                else:
+                    first_media = media_items[0]
+                    if first_media['type'] == 'photo':
+                        await message.bot.send_photo(
+                            chat_id=user_id_single,
+                            photo=first_media['file_id'],
+                            caption=caption or text,
+                            reply_markup=ReplyKeyboardRemove()
+                        )
+                    elif first_media['type'] == 'animation':
+                        await message.bot.send_animation(
+                             chat_id=user_id_single,
+                             animation=first_media['file_id'],
+                             caption=caption or text,
+                        )
+                    elif first_media['type'] == 'video':
+                        await message.bot.send_video(
+                            chat_id=user_id_single,
+                            video=first_media['file_id'],
+                            caption=caption or text,
+                        )
+                    elif first_media['type'] == 'document':
+                        await message.bot.send_document(
+                            chat_id=user_id_single,
+                            document=first_media['file_id'],
+                            caption=caption or text,
+                        )
+            elif text:
                 await message.bot.send_message(
                     chat_id=user_id_single,
                     text=text
@@ -288,63 +396,98 @@ async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSe
     await state.set_state(Admin.admin)
 
 
-@router.message(F.text == NewsletterButtons.change_text, StateFilter(NewSletterState.change_content))
+@router.message(F.text.in_([NewsletterButtons.change_text, NewsletterButtons.change_all]), StateFilter(NewSletterState.change_content))
 async def change_text_newsletter(message: Message, state: FSMContext):
-    pass
+    text_bt = message.text
+    full_data = await state.get_data()
+    media_items = full_data.get('media_items', [])
+    text = full_data.get('text')
+    caption = full_data.get('caption')
 
-
-@router.message(F.text == NewsletterButtons.change_media, StateFilter(NewSletterState.change_content))
-async def change_text_newsletter(message: Message, state: FSMContext):
-    pass
-
-
-@router.message(StateFilter(NewSletterState.check_rassilka), F.text == NewsletterButtons.change_message)
-async def edit_text_rassilka(message: Message, state: FSMContext):
-    data = await state.get_data()
-    photo_id = data.get('photo_id')
-    text = data.get('text')
-    caption = data.get('caption')
-    gif_id = data.get('gif_id')
-    document_id = data.get('document_id')
-    video_id = data.get('video_id')
-
-    if photo_id:
-        await message.answer_photo(
-            photo=photo_id,
-            caption=f"{markdown.hbold('Текущее сообщение с фото:')}\n\n {caption or text}",
-        )
-    elif gif_id:
-        await message.answer_animation(
-            animation=gif_id,
-            caption=f"{markdown.hbold('Текущее сообщение с GIF:')}\n\n {caption or text}",
-    )
-    elif video_id:
-        await message.answer_video(
-            video=video_id,
-            caption=f"{markdown.hbold('Текущее сообщение с видео:')}\n\n {caption or text}",
-        )
-    elif document_id:
-        await message.answer_document(
-            document=document_id,
-            caption=f"{markdown.hbold('Текущее сообщение с документом:')}\n\n {caption or text}",
-        )
-    else:
+    if media_items:
+        if len(media_items) > 1:
+            media_group = []
+            for i, media in enumerate(media_items):
+                if media['type'] == 'photo':
+                    media_group.append(InputMediaPhoto(media=media['file_id'], caption=caption or text if i == 0 else None))
+                elif media['type'] == 'animation':
+                    media_group.append(InputMediaAnimation(media=media['file_id'], caption=caption or text if i == 0 else None))
+                elif media['type'] == 'video':
+                    media_group.append(InputMediaVideo(media=media['file_id'], caption=caption or text if i == 0 else None))
+                elif media['type'] == 'document':
+                    media_group.append(InputMediaDocument(media=media['file_id'], caption=caption or text if i == 0 else None))
+            await message.bot.send_media_group(
+                chat_id=message.from_user.id,
+                media=media_group
+            )
+        else:
+            first_media = media_items[0]
+            if first_media['type'] == 'photo':
+                await message.answer_photo(
+                    photo=first_media['file_id'],
+                    caption=f"{markdown.hbold('Текущее сообщение с фото:')}\n\n {caption or text}",
+                )
+            elif first_media['type'] == 'animation':
+                await message.answer_animation(
+                    animation=first_media['file_id'],
+                    caption=f"{markdown.hbold('Текущее сообщение с GIF:')}\n\n {caption or text}",
+                )
+            elif first_media['type'] == 'video':
+                await message.answer_video(
+                    video=first_media['file_id'],
+                    caption=f"{markdown.hbold('Текущее сообщение с видео:')}\n\n {caption or text}",
+                )
+            elif first_media['type'] == 'document':
+                await message.answer_document(
+                    document=first_media['file_id'],
+                    caption=f"{markdown.hbold('Текущее сообщение с документом:')}\n\n {caption or text}",
+                )
+    elif text:
         await message.answer(
             text=f'{markdown.hbold("Текущее сообщение:")}\n\n{text}',
         )
 
+    if text_bt == NewsletterButtons.change_text:
+        await message.answer(
+            'Пришлите исправный текст/подпись для рассылки:',
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+        await state.update_data({
+            "media_items": media_items,
+        })
+
+    if text_bt == NewsletterButtons.change_all:
+        await message.answer(
+            text="Пришлите медия с подписью либо без:",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+    await state.set_state(NewSletterState.change_text_caption)
+
+
+@router.message(StateFilter(NewSletterState.check_rassilka), F.text == NewsletterButtons.change_message)
+async def edit_text_rassilka(message: Message, state: FSMContext):
+    full_data = await state.get_data()
+    media_items = full_data.get('media_items', [])
+    text = full_data.get('text')
+    caption = full_data.get('caption')
+
     await message.answer(
-        'Пришлите исправное сообщение для рассылки:',
-        reply_markup=ReplyKeyboardRemove()
+        text=
+        f"{NewsletterButtons.change_text}:\n"
+        "Сохраняет медия но исправляет текст/подпись, если прислать новое медиа то все сохраненные сбросятся.\n\n"
+        f"{NewsletterButtons.change_all}:\n"
+        "Сбрасывает все сохраненные медиа, для грядущего изменения.",
+        reply_markup=change_content_send_bt()
     )
 
     await state.update_data({
-        "photo_id": photo_id,
-        "gif_id": gif_id,
-        "document_id": document_id,
-        "video_id": video_id,
+        "media_items": media_items,
+        "text": text,
+        "caption": caption,
     })
-    await state.set_state(NewSletterState.rassilka)
+    await state.set_state(NewSletterState.change_content)
 
 
 @router.message(F.text == MainButtons.info_payments, StateFilter(Admin.admin))

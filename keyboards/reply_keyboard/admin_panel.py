@@ -55,8 +55,13 @@ def payments_kb() -> ReplyKeyboardMarkup:
 
 def change_content_send_bt() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
-    builder.button(text=PaymentsUsers.user_payments)
-    builder.button(text=PaymentsUsers.all_payments)
-    builder.button(text=OtherEWhere.back)
-    builder.adjust(2, 1)
+    builder.button(text=NewsletterButtons.change_text)
+    builder.button(text=NewsletterButtons.change_all)
+    builder.adjust(1)
+    return builder.as_markup(resize_keyboard=True)
+
+def continue_bt() -> ReplyKeyboardMarkup:
+    builder = ReplyKeyboardBuilder()
+    builder.button(text=NewsletterButtons.continue_action)
+    builder.adjust(1)
     return builder.as_markup(resize_keyboard=True)
