@@ -25,7 +25,7 @@ dp.include_routers(commands_router)
 bot = Bot(token=BotParams.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp.update.middleware(DatabaseMiddleware(async_session))
 
-webhook_bool = True
+webhook_bool = False
 app = FastAPI()
 
 if webhook_bool:
