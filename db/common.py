@@ -1,6 +1,5 @@
 import io
 import logging
-from turtle import st
 from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove
@@ -12,14 +11,14 @@ from settings import BotParams
 from FSM.states import Admin, PaymentsUserState, NewSletterState
 from db.tables import User, Subscription, Images, PaymentHistory
 from keyboards.inline_keyboard.common import Main_menu, slide_kb
-from keyboards.reply_keyboard.admin_panel import admin_kb, continue_bt, count_year_month_bt, main_menu_kb, years_dinamic_bt, yes_no_kb, yes_no, exit_, payments_kb, change_content_send_bt, months_input_bt
+from keyboards.reply_keyboard.admin_panel import admin_kb, continue_bt, main_menu_kb, yes_no_kb, yes_no, exit_, payments_kb, change_content_send_bt, months_input_bt
 from utils.load_image import ImageProcessing
-from utils.other import CountFilterPayments, samples_
-from utils.work import currently_msk, url_support
+from utils.other import samples_
+from utils.work import url_support
 from utils.other import create_slide_payments_bt, OperationNames
 from sqlalchemy.ext.asyncio import AsyncSession
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
-from keyboards.reply_keyboard.buttons_names import FilterPayments, MainButtons, NewsletterButtons, OtherEWhere, PaymentsUsers, month_names_dict
+from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons, OtherEWhere, PaymentsUsers
 from aiogram.utils.deep_linking import decode_payload, create_start_link
 from aiogram.client.bot import DefaultBotProperties
 from aiogram import Bot
@@ -507,104 +506,14 @@ async def output_users(message: Message, state: FSMContext):
     await state.set_state(PaymentsUserState.payments_menu)
 
 
-@router.message(F.text == PaymentsUsers.filter_amount_date, StateFilter(PaymentsUserState.payments_menu))
-async def filter_processing(message: Message, state: FSMContext, db_session: AsyncSession):    
-    data = await state.get_data()
-    year_data = data.get("year")
-    
-    pay_dao = BaseDAO(PaymentHistory, db_session)
-    check_users = await pay_dao.get_all_column_values(PaymentHistory.user_id)
-
-    if not check_users:
-        await message.answer(text="🤷‍♂️ Нет ни одной транзакции от юзеров.")
-        return
-    
-    if year_data:
-        add_text = f'{markdown.hbold(f"(соранен {year_data}).")}'
-    else:
-        add_text = '(потом можно выбрать)'
-
+@router.message(F.text == PaymentsUsers.filter_amount_date, StateFilter(PaymentsUserState.filter_amount_month))
+async def filter_processing(message: Message, state: FSMContext):
     await message.answer(
         text=
-        f"Фильтрация происходит по месяцам на кнопках и опционально по текущему году {add_text}\n"
-        "Считает общую сумму за месяц.",
+        "Фильтрация происходит по месяцам на кнопках и по текущему году.\n",
         reply_markup=months_input_bt()
         )
-    await state.set_data({"year": year_data})
     await state.set_state(PaymentsUserState.filter_month)
-
-
-@router.message(F.text.in_(list(month_names_dict.keys())), StateFilter(PaymentsUserState.filter_month))
-async def filter_payments_processing(message: Message, db_session: AsyncSession, state: FSMContext):
-    data = await state.get_data()
-    year_data = data.get("year")
-    
-    text = message.text
-    for month_name, month in month_names_dict.items():
-        if text == month_name:
-            payb = BaseDAO(PaymentHistory, db_session)
-            cfp = CountFilterPayments(payb, month, year_data)
-            filtered_payments = await cfp.get_monthly_payments()
-
-            if filtered_payments:
-                full_amount = await cfp.full_amount()
-                await message.answer(
-                    text=
-                    f"За {text} {year_data or currently_msk.year} года.\n"
-                    f"Общая сумма: {markdown.hbold(full_amount)}₽",
-                    reply_markup=count_year_month_bt()
-                )
-            else:
-                await message.answer(
-                    f"За {text} ничего не найдено.",
-                    reply_markup=count_year_month_bt(),
-                    )
-            await state.set_state(PaymentsUserState.filter_year_month)
-
-
-@router.message(F.text.in_([FilterPayments.back_to_filter_month, FilterPayments.filter_year_month]), StateFilter(PaymentsUserState.filter_year_month))
-async def filtered_global_processing(message: Message, db_session: AsyncSession, state: FSMContext):
-    text = message.text
-    if text == FilterPayments.back_to_filter_month:
-        await state.set_state(PaymentsUserState.payments_menu)
-        await filter_processing(message, state, db_session)
-
-    if text == FilterPayments.filter_year_month:
-        pay_dao = BaseDAO(PaymentHistory, db_session)
-        dates = await pay_dao.get_all_column_values(
-            columns=PaymentHistory.date_paid
-        )
-        dates.sort(key=lambda d: d.year, reverse=True)
-
-        last_year = None
-        current_msk_year = currently_msk.year
-        seen_years = set()
-        for d in dates:
-            year_date = d.year
-            if year_date != current_msk_year and year_date not in seen_years:
-                last_year = year_date
-                break
-            seen_years.add(year_date)
-
-        await message.answer(
-            text=
-            f"Выберите год (он будет сохранен для фильтрации):\n\n"
-            "Если в прошлом году были транзакции он будет представлен, либо только текущий.",
-            reply_markup=years_dinamic_bt(last_year),
-        )
-        await state.set_state(PaymentsUserState.save_year)
-
-
-@router.message(StateFilter(PaymentsUserState.save_year))
-async def save_year_data(message: Message, state: FSMContext, db_session: AsyncSession):
-    entered_year = message.text
-    if not entered_year.isdigit():
-        await message.answer("Было введено не числовое значение, повторите попытку.")
-
-    await state.set_data({"year": entered_year})
-    await state.set_state(PaymentsUserState.payments_menu)
-    await filter_processing(message, state, db_session)
-
 
 @router.message(F.text == PaymentsUsers.all_payments, StateFilter(PaymentsUserState.payments_menu))
 async def all_payments_processing(message: Message, db_session: AsyncSession):

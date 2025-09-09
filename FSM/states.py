@@ -18,3 +18,7 @@ class NewSletterState(StatesGroup):
 
 class PaymentsUserState(StatesGroup):
     payments_menu = State()
+    filter_amount_month = State()
+    filter_month = State()
+    filter_year_month = State()
+    save_year = State()

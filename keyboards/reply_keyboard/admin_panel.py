@@ -1,7 +1,8 @@
 from aiogram.types import ReplyKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from settings import BotParams
-from keyboards.reply_keyboard.buttons_names import MainButtons, NewsletterButtons, PaymentsUsers, OtherEWhere
+from keyboards.reply_keyboard.buttons_names import FilterPayments, MainButtons, MonthsNames, NewsletterButtons, PaymentsUsers, OtherEWhere
+from utils.work import currently_msk
 
 def admin_kb() -> ReplyKeyboardMarkup:
     admin_ids = BotParams.admin_ids_str
@@ -49,8 +50,9 @@ def payments_kb() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(text=PaymentsUsers.user_payments)
     builder.button(text=PaymentsUsers.all_payments)
+    builder.button(text=PaymentsUsers.filter_amount_date)
     builder.button(text=OtherEWhere.back)
-    builder.adjust(2, 1)
+    builder.adjust(2, 1, 1)
     return builder.as_markup(resize_keyboard=True)
 
 def change_content_send_bt() -> ReplyKeyboardMarkup:
@@ -64,4 +66,42 @@ def continue_bt() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(text=NewsletterButtons.continue_action)
     builder.adjust(1)
+    return builder.as_markup(resize_keyboard=True)
+
+def months_input_bt() -> ReplyKeyboardMarkup:
+    builder = ReplyKeyboardBuilder()
+    builder.button(text=MonthsNames.january)
+    builder.button(text=MonthsNames.february)
+    builder.button(text=MonthsNames.march)
+    builder.button(text=MonthsNames.april)
+    builder.button(text=MonthsNames.may)
+    builder.button(text=MonthsNames.june)
+    builder.button(text=MonthsNames.july)
+    builder.button(text=MonthsNames.august)
+    builder.button(text=MonthsNames.september)
+    builder.button(text=MonthsNames.october)
+    builder.button(text=MonthsNames.november)
+    builder.button(text=MonthsNames.december)
+    builder.button(text=OtherEWhere.back)
+    builder.adjust(2, 2, 2, 2, 2, 2, 1)
+    return builder.as_markup(resize_keyboard=True)
+
+def count_year_month_bt() -> ReplyKeyboardMarkup:
+    builder = ReplyKeyboardBuilder()
+    builder.button(text=FilterPayments.filter_year_month)
+    builder.button(text=FilterPayments.back_to_filter_month)
+    builder.adjust(1)
+    return builder.as_markup(resize_keyboard=True)
+
+def years_dinamic_bt(last_year: str | int | None = None) -> ReplyKeyboardMarkup:
+    # max 2
+    builder = ReplyKeyboardBuilder() 
+    size = 1
+    if last_year:
+        builder.button(text=f"{currently_msk.year}")
+        builder.button(text=f"{last_year}")
+    else:
+        builder.button(text=f"{currently_msk.year}")
+
+    builder.adjust(size)    
     return builder.as_markup(resize_keyboard=True)

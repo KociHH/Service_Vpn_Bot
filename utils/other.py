@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from aiogram.types import CallbackQuery, Message
 from keyboards.inline_keyboard.common import slide_kb
+from sqlalchemy import func
 
 from settings import BotParams
+from utils.work import currently_msk
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +129,47 @@ async def create_slide_payments_bt(
         )
     )
     return
+
+
+class CountFilterPayments:
+    def __init__(
+        self,
+        payment_history_dao: BaseDAO,
+        month: int,
+        year: int | str | None = None,
+        ) -> None:
+        self.payment_history_dao = payment_history_dao
+        self.month = month
+        self.year = int(year) if year is not None else None
+
+    async def get_monthly_payments(self) -> list:
+        all_payments_data = await self.payment_history_dao.get_all_column_values(
+            columns=(PaymentHistory.date_paid, PaymentHistory.payment_amount)
+        )
+
+        target_year = self.year if self.year is not None else currently_msk.year
+
+        filtered_payments = []
+        for date_paid, payment_amount in all_payments_data:
+            if date_paid.month != self.month:
+                continue
+            if date_paid.year != target_year:
+                continue
+            filtered_payments.append({'date_paid': date_paid, 'payment_amount': payment_amount})
+        
+        filtered_payments.sort(key=lambda p: (p['date_paid'].year, p['date_paid'].month, p['date_paid']))
+
+        return filtered_payments
+
+
+    async def full_amount(self) -> int:
+        filtered_payments = await self.get_monthly_payments()
+            
+        total_sum = 0
+        if filtered_payments:
+            for payment in filtered_payments:
+                total_sum += int(payment['payment_amount'])
+        return total_sum
 
 
 def samples_(texts: list[str], style: bool = False):
