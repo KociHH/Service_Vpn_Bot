@@ -28,5 +28,42 @@
 | `SqlAlchemy`          | Используется через `kos_Htools` работая с Postgresql храня всю информацию о пользователях. |
 | `YooKassa`            | Платежный шлюз для проверки и подтверждения оплаты. |
 
+## Запуск.
+
+### Подготовка (.env):
+
+Использовать **broker:6379** (имя сервиса celery) для запуска локально.
+
+```bash
+CELERY_BROKER_URL=redis://broker:6379/0
+CELERY_RESULT_BACKEND=redis://broker:6379/0
+```
+
+### Сборка:
+
+```bash
+docker compose build
+```
+### Запуск в фоне:
+
+```bash
+docker compose up -d
+```
+
+### Логи:
+
+Бот:
+```bash
+docker compose logs -f bot
+```
+
+Celery сервисы:
+```bash
+docker compose logs -f celery_worker
+```
+```bash
+docker compose logs -f celery_beat
+```
+
 ## Статус проекта
 Коммерческий продукт, активно развивается: регулярные обновления и вправки.

@@ -1,11 +1,35 @@
-version: '3.8'
-
 services:
+  broker:
+    image: redis:7-alpine
+    restart: always
+
   bot:
     build:
-        context: .
+      context: .
     env_file:
       - .env
     ports:
-      - '8000:8000'
+      - "8000:8000"
+    depends_on:
+      - broker
+    restart: always
+
+  celery_worker:
+    build:
+      context: .
+    command: celery -A celery_habitat.celery_app worker -l info -P solo
+    env_file:
+      - .env
+    depends_on:
+      - broker
+    restart: always
+
+  celery_beat:
+    build:
+      context: .
+    command: celery -A celery_habitat.celery_app beat -l info
+    env_file:
+      - .env
+    depends_on:
+      - broker
     restart: always
