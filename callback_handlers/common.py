@@ -80,12 +80,12 @@ async def month_processing(call: CallbackQuery, db_session: AsyncSession):
 async def start_deep_link(call: CallbackQuery):
 
     text = markdown.text(
-        f"Здравствуйте, {call.from_user.full_name}!\n\n"
-        f"🗝️ Познакомьтесь с {BotParams.name_project} VPN:\n",
-        "🌑 I Скорость до 10 Гбит/с\n",
-        "👁‍🗨 II Непрерывная маскировка IP-адреса и безопасность\n",
-        "💻 III Современный интерфейс\n",
-        "💳 Оплата картами РФ и СБП",
+        f"{markdown.hbold(f'Здравствуйте, {call.from_user.full_name}!')}\n\n"
+        f"{markdown.hbold(f'🗝️ Познакомьтесь с {BotParams.name_project} VPN:')}\n",
+        "— Скорость до 10 Гбит/с",
+        "— Непрерывная маскировка",
+        "— Современный интерфейс\n",
+        f"{markdown.hbold(f'💳 Оплата картами РФ и СБП')}",
         sep='\n',
     )
     await call.message.edit_text(text, reply_markup=Main_menu())
