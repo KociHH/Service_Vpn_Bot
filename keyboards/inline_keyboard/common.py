@@ -28,13 +28,13 @@ class Price_and_us_and:
         self.us = us
         self.month = month
 
-info = Price_and_us_and(price=249.00, month=1, description='Shade VPN на 1 месяц')
-info2 = Price_and_us_and(price=579.00, month=3, description='Shade VPN на 3 месяца')
-info3 = Price_and_us_and(price=979.00, month=6, description='Shade VPN на 6 месяцев')
+info = Price_and_us_and(price=390.00, month=1, description=f'{BotParams.name_project} VPN на 1 месяц')
+info2 = Price_and_us_and(price=990.00, month=3, description=f'{BotParams.name_project} VPN на 3 месяца')
+info3 = Price_and_us_and(price=1690.00, month=6, description=f'{BotParams.name_project} VPN на 6 месяцев')
 
-info_price_249 = Price_and_us_and('249₽ (-11%)', 1)
-info_price_579 = Price_and_us_and('579₽ (-23%)', 3)
-info_price_979 = Price_and_us_and('979₽ (-35%)', 6)
+info_price_249 = Price_and_us_and('390₽ (-11%)', 1)
+info_price_579 = Price_and_us_and('990₽ (-23%)', 3)
+info_price_979 = Price_and_us_and('1690₽ (-35%)', 6)
 
 def Main_menu() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -49,7 +49,7 @@ def Main_menu() -> InlineKeyboardMarkup:
         text='Поддержка',
         callback_data=Main.Support)
     builder.button(
-        text='Наш телеграмм канал',
+        text='Наш телеграм чат',
         url=BotParams.username_channel)
     
     builder.adjust(1)
