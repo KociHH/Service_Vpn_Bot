@@ -29,7 +29,7 @@ elif mode == "PROD":
     url_db = SqlPublic.DATABASE_URL_PUBLIC
     username_support = BotParams.username_support
     redis_url = RedisBD.PROD_REDIS
-    admin_id = BotParams.admin_id
+    admin_id = BotParams.admin_id_prod
     
 url_support = f"https://t.me/{username_support}"
 
@@ -44,7 +44,7 @@ print(f"""
 {url_db}
 {redis_url} 
 
-{currently_msk}
+{currently_msk()}
 {username_support}
 {url_support}
 """)

@@ -22,8 +22,8 @@ class BotParams:
     username_channel = os.getenv("USERNAME_CHANNEL")
     username_support_test = os.getenv("USERNAME_SUPPORT_TEST")
     name_project = os.getenv("NAME_PROJECT")
-    admin_id = os.getenv("ADMIN_ID")
     admin_id_test = os.getenv("ADMIN_ID_TEST")
+    admin_id_prod = os.getenv("ADMIN_ID")
     username_bot = os.getenv("USERNAME_BOT")
 
 class WEBHOOK:
