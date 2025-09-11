@@ -549,7 +549,7 @@ async def filter_payments_processing(message: Message, db_session: AsyncSession,
                 full_amount = await cfp.full_amount()
                 await message.answer(
                     text=
-                    f"За {text} {year_data or currently_msk.year} года.\n"
+                    f"За {text} {year_data or currently_msk().year} года.\n"
                     f"Общая сумма: {markdown.hbold(full_amount)}₽",
                     reply_markup=count_year_month_bt()
                 )
@@ -576,7 +576,7 @@ async def filtered_global_processing(message: Message, db_session: AsyncSession,
         dates.sort(key=lambda d: d.year, reverse=True)
 
         last_year = None
-        current_msk_year = currently_msk.year
+        current_msk_year = currently_msk().year
         seen_years = set()
         for d in dates:
             year_date = d.year

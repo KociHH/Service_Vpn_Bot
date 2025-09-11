@@ -147,7 +147,7 @@ class CountFilterPayments:
             columns=(PaymentHistory.date_paid, PaymentHistory.payment_amount)
         )
 
-        target_year = self.year if self.year is not None else currently_msk.year
+        target_year = self.year if self.year is not None else currently_msk().year
 
         filtered_payments = []
         for date_paid, payment_amount in all_payments_data:

@@ -100,7 +100,7 @@ class subscriber:
         except ValueError: 
             return
 
-        current_date = currently_msk
+        current_date = currently_msk()
         new_end_date = current_date + timedelta(days=month_days)
 
         existing_subscription = await self.sub_dao.get_one(Subscription.user_id == self.user_id)

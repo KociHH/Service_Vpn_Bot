@@ -29,16 +29,15 @@ def notify_expiring_subscriptions():
     bot = Bot(token=BotParams.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     
     async def _async(bot: Bot, db_session: AsyncSession):
-        user_dao = BaseDAO(User, db_session)
         sub_dao = BaseDAO(Subscription, db_session)
-        target_date = currently_msk + timedelta(days=3)
+        target_date = currently_msk() + timedelta(days=3)
         target_date = target_date.date()
 
         # истекает через 3 дня
         try:
             checked_users = 0
             expiring_subscriptions = await sub_dao.get_all_column_values(
-                (Subscription.user_id, Subscription.end_date),
+                columns=(Subscription.user_id, Subscription.end_date),
                 where=func.date(Subscription.end_date) <= target_date)
 
             for user in expiring_subscriptions:
@@ -70,7 +69,7 @@ def notify_expiring_subscriptions():
             checked_users = 0
             expired_subscriptions = await sub_dao.get_all_column_values(
                 Subscription.user_id,
-                where=Subscription.end_date <= currently_msk)
+                where=Subscription.end_date <= currently_msk())
 
             for user_id in expired_subscriptions:
                 logger.info(f"У юзера {user_id} закончилась подписка.")

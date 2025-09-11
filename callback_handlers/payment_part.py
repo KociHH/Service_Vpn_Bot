@@ -88,13 +88,12 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
         payment_parts = call.data.split('_')
         payment_id = payment_parts[2]
         payment_amount = float(payment_parts[3])
-        check_ = await check(payment_id, call=call, month=month, date=currently_msk, db_session=db_session)
+        check_ = await check(payment_id, call=call, month=month, date=currently_msk(), db_session=db_session)
 
         if not check_:
             await call.message.answer(
                 '❗ Оплата не прошла ❗\n\n'
-                'Если вы уверены, что совершили оплату, пожалуйста,'
-                f'обратитесь в поддержку - @{username_support}'
+                f'Если вы уверены, что совершили оплату, пожалуйста, обратитесь в поддержку - @{username_support}'
             )
             return
 
@@ -103,7 +102,7 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
             "user_id": user_id,
             "month": month,
             "payment_amount": payment_amount,
-            "date_paid": currently_msk,
+            "date_paid": currently_msk(),
         })
         if not paid_create:
             logger.error(f"Не добавились данные об оплате в базу {paid_dao.model.__name__} юзера {user_id}")

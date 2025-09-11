@@ -98,10 +98,10 @@ def years_dinamic_bt(last_year: str | int | None = None) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder() 
     size = 1
     if last_year:
-        builder.button(text=f"{currently_msk.year}")
+        builder.button(text=f"{currently_msk().year}")
         builder.button(text=f"{last_year}")
     else:
-        builder.button(text=f"{currently_msk.year}")
+        builder.button(text=f"{currently_msk().year}")
 
     builder.adjust(size)    
     return builder.as_markup(resize_keyboard=True)

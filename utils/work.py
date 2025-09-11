@@ -32,8 +32,9 @@ elif mode == "PROD":
     admin_id = BotParams.admin_id
     
 url_support = f"https://t.me/{username_support}"
-currently_msk = DateTemplate().conclusion_date(option="time_now").replace(tzinfo=None)
-currently_msk_minsec = DateTemplate().conclusion_date(option="date")
+
+def currently_msk():
+    DateTemplate().conclusion_date(option="time_now").replace(tzinfo=None)
 
 print(f"""
 {webhook} 
