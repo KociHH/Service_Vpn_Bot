@@ -34,7 +34,7 @@ elif mode == "PROD":
 url_support = f"https://t.me/{username_support}"
 
 def currently_msk():
-    DateTemplate().conclusion_date(option="time_now").replace(tzinfo=None)
+    return DateTemplate().conclusion_date(option="time_now").replace(tzinfo=None)
 
 print(f"""
 {webhook} 
