@@ -17,6 +17,7 @@ class Main:
     advantages = "advantages"
     Support = "Support"
     MAIN = "MAIN"
+    gift_free_subscription = "gift_free_subscription"
 
 class Other:
     slide = "slide_"
@@ -48,6 +49,9 @@ def Main_menu() -> InlineKeyboardMarkup:
     builder.button(
         text='Поддержка',
         callback_data=Main.Support)
+    builder.button(
+        text='Пробный доступ',
+        callback_data=Main.gift_free_subscription)
     builder.button(
         text='Наш телеграм чат',
         url=BotParams.username_channel)

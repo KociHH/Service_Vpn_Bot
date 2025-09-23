@@ -1,4 +1,4 @@
-from aiogram import F
+from aiogram import F, Bot
 from aiogram import Router
 from aiogram.types import CallbackQuery
 from aiogram.utils import markdown
@@ -10,14 +10,13 @@ from keyboards.inline_keyboard.pay import CashMultiBt, CashMenu
 from settings import BotParams
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from sqlalchemy.ext.asyncio import AsyncSession
-from utils.work import url_support
+from utils.work import admin_id, url_support
 from utils.other import create_slide_payments_bt, OperationNames
 import logging
-
+from aiogram.client.bot import DefaultBotProperties
+from aiogram.enums import ParseMode
 
 logger = logging.getLogger(__name__)
-
-
 router = Router()
 
 text_answer_one = markdown.text(
@@ -143,6 +142,22 @@ async def purchase_Support(call: CallbackQuery):
             f'💬 Если у вас возникли вопросы, смело обращайтесь в поддержку {markdown.hlink(title=BotParams.name_project, url=url_support)}\n\n',
         ),
         reply_markup=return_kb_support())
+
+
+@router.callback_query(F.data == Main.gift_free_subscription)
+async def gift_free_subscription(call: CallbackQuery):
+    user_id = call.from_user.id
+    username = call.from_user.username
+    await call.answer()
+    await call.message.answer(
+        text="Для подключения пробного периода, с вами свяжется наша поддержка, в течении пары минут."
+    )
+
+    link = f"tg://user?id={user_id}"
+    await call.message.bot.send_message(
+        chat_id=admin_id,
+        text=f"{markdown.hlink(str(user_id), link)} (@{username}) хочет активировать пробный доступ",
+    )
 
 
 @router.callback_query(F.data.startswith(Other.slide))
