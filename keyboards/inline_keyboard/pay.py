@@ -5,7 +5,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from typing import Any
 from db.middlewares.middle import logger
 from callback_handlers.pay_func.pay_yookassa import create_oplata
-from keyboards.inline_keyboard.common import Main, info, info3, info2, Month
+from keyboards.inline_keyboard.common import Main, info, info2, Month
 
 
 router = Router()
@@ -13,7 +13,6 @@ router = Router()
 class CashMenu:
     MOVEMENT_OPLATA = "MOVEMENT_OPLATA"
     MOVEMENT_OPLATA_TWO = "MOVEMENT_OPLATA_TWO"
-    MOVEMENT_OPLATA_TREE = "MOVEMENT_OPLATA_TREE"
 
 class info_month:
     def __init__(
@@ -33,10 +32,6 @@ class info_month:
             self.description = info2.description
             self.month = info2.month
             self.price = info2.price
-        elif callback_data == CashMenu.MOVEMENT_OPLATA_TREE:
-            self.description = info3.description
-            self.month = info3.month
-            self.price = info3.price
         return self.price, self.month, self.description
 
     async def oplatas(self, message: Message) -> InlineKeyboardMarkup:

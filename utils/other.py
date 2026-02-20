@@ -8,7 +8,7 @@ from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from aiogram.types import CallbackQuery, Message
 from keyboards.inline_keyboard.common import slide_kb
 from sqlalchemy import func
-
+from aiogram.types import FSInputFile
 from settings import BotParams
 from utils.work import currently_msk
 
@@ -180,3 +180,5 @@ def samples_(texts: list[str], style: bool = False):
         line = t * (len(text) // 2)
         result.append(f'{text}\n{line if not any([style, style == True]) else markdown.hbold(line)}')
     return "\n\n".join(result)
+
+main_photo = FSInputFile("static/photo_2026-02-07_00-56-32.jpg")

@@ -18,9 +18,10 @@ def admin_kb() -> ReplyKeyboardMarkup:
 def main_menu_kb() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(text=MainButtons.newsletter)
-    builder.button(text=MainButtons.load_files)
-    builder.button(text=MainButtons.check_images)
+    # builder.button(text=MainButtons.load_files)
+    # builder.button(text=MainButtons.check_images)
     builder.button(text=MainButtons.info_payments)
+    builder.button(text=MainButtons.load_link_vless)
     builder.adjust(2, 1)
 
     return builder.as_markup(resize_keyboard=True)

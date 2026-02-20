@@ -10,7 +10,7 @@ from aiogram.types import InputFile, BufferedInputFile, ReplyKeyboardRemove, Cal
 from aiogram.utils import markdown
 from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.tables import Images, Subscription
+from db.tables import Images, Subscription, VlessLinks
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
 from settings import BotParams
 from utils.work import currently_msk
@@ -161,40 +161,31 @@ class ImageProcessing:
                 end_date = src.end_date
                 package_sub.append((start_date, end_date))
 
-            all_images = await self.images_dao.get_all()
-            output_image = all_images[0] if all_images else None
+            vless_dao = BaseDAO(VlessLinks, self.db_session)
+            all_links = await vless_dao.get_all()
+            
+            if all_links:
+                selected_link = random.choice(all_links)
+                vless_link = selected_link.src
+                link_id = selected_link.id
+                
+                text = (f"Твой доступ к VPN готов 🚀\n\n"
+                       f"Вот твоя персональная ссылка (VLESS):\n\n"
+                       f"🔐 {markdown.hcode(vless_link)}\n\n"
+                       f"Как подключиться:\n"
+                       f"1. Скопируй ссылку\n"
+                       f"2. Вставь её в клиент (Happ, V2RayTun, Hiddify)\n"
+                       f"3. Подключайся и кайфуй от интернета без блокировок\n\n"
+                       f"Если не работает — пиши в поддержку")
 
-            if output_image:
-                name = output_image.name
-                id_img = output_image.id
-                image_stream = output_image.image
-                image_file = BufferedInputFile(image_stream, filename="AMMO_VPN.jpg")
-
-                text = markdown.text(
-                    f"Инструкция:\n\n"
-
-                    "I Установите WireGuard\n"
-                    "ссылка на сайт для скачивания - https://www.wireguard.com/install/\n"
-                    "II Войдя в WireGuard нажмите на '+' и сканируйте QR-код, который Вам выдал бот\n\n"
-
-                    "I Не делитесь своими данными VPN с посторонними\n"
-                    "II Не используйте 1 приобретенный ключ на разных устройствах,\n"
-                    "лучше приобрести новый vpn для другого устройства\n"
-                    "III Не забывайте выходить из VPN, когда он вам не нужен\n\n"
-
-                    f"Желаем Вам приятного использования {BotParams.name_project} VPN!",""
-                )
-
-                await message.message.answer_photo(
-                    photo=image_file,
-                    caption=text
-                )
-                await self.delete_code(message, id_img)
-
-                return name, id_img, package_sub
+                await message.message.answer(text=text)
+                
+                await vless_dao.delete(VlessLinks.id == link_id)
+                logger.info(f"Удалена vless ссылка с id {link_id} для пользователя {user_id}")
+                
+                return vless_link, link_id, package_sub
+                
             else:
-                name = 'Неизвестно'
-                id_img = 'Неизвестно'
                 keyboard = InlineKeyboardButton(
                     text="🤝 Обратиться в поддержку",
                     url='https://t.me/tripleswaga'
@@ -202,13 +193,12 @@ class ImageProcessing:
                 button_support = InlineKeyboardMarkup(inline_keyboard=[[keyboard]])
                 await message.message.answer(
                     text=
-                    f'Извините, сейчас нет доступных ключей.\n'
-                    f'Нажмите на кнопку ниже, чтобы оповестить нас и мы выдадим новый ключ.',
+                    f'Извините, сейчас нет доступных ссылок.\n'
+                    f'Нажмите на кнопку ниже, чтобы оповестить нас и мы выдадим новую ссылку.',
                     reply_markup=button_support
                 )
-                return name, id_img, package_sub
-
+                return None, None, package_sub
 
         except Exception as e:
-            logger.error(f'Ошибка: {e}')
-            return
+            logger.error(f'Ошибка в send_crcode: {e}')
+            return None, None, []

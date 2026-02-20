@@ -23,7 +23,7 @@ router = Router(name=__name__)
 load_dotenv()
 
 
-@router.callback_query(F.data.in_((CashMenu.MOVEMENT_OPLATA, CashMenu.MOVEMENT_OPLATA_TWO, CashMenu.MOVEMENT_OPLATA_TREE)))
+@router.callback_query(F.data.in_((CashMenu.MOVEMENT_OPLATA, CashMenu.MOVEMENT_OPLATA_TWO)))
 async def cash_ck(call: CallbackQuery, state: FSMContext):
     await call.message.bot.send_chat_action(
         chat_id=call.message.chat.id,
@@ -129,13 +129,12 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
             await call.message.bot.send_message(
                 chat_id = admin_id,
                 text=
-                f'Фотки закончились напиши {username} если нет то,\n'
+                f'Сылки закончились напиши {username} если нет то,\n'
                 f'его {markdown.hlink(f"{link}", f"tg://user?id={user_id}")}\n'
                 f'Он оплатил на {markdown.hbold(month)} месяц(-а); сумма: {payment_amount}₽'
             )
             return
 
-        # await call.answer(f'Подписка продлена до: {markdown.hcode(end)}')
         await call.message.bot.send_message(
             chat_id=admin_id,
             text=
@@ -144,9 +143,9 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
             f'username: {username or "Не указан"}\n'
             f'user_id: {user_id}\n\n'
 
-            f"{markdown.hbold("QR-код")}:\n"
-            f"name: {name}\n"
-            f'id: {id_img}\n\n'
+            f"{markdown.hbold("VLESS ссылка")}:\n"
+            f"Ссылка: {markdown.hcode(name) if name else 'Не указана'}\n"
+            f'ID ссылки: {id_img if id_img else "Не указан"}\n\n'
 
             f"{markdown.hbold('Время')}:\n"
             f"Время первого платежа: {markdown.hcode(start)}\n"
@@ -157,15 +156,15 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
             f'username: {username or "Не указан"}\n'
             f'user_id: {user_id}\n\n'
 
-            f"QR-код:\n"  
-            f"name: {name}\n"
-            f'id: {id_img}\n\n'
+            f"VLESS ссылка:\n"  
+            f"Ссылка: {name if name else 'Не указана'}\n"
+            f'ID ссылки: {id_img if id_img else "Не указан"}\n\n'
 
             f"Время:\n"
             f"Время первого платежа: {start}\n"
             f"Кончается: {end}\n\n"
         )
-        await image_processing.delete_code(call, id_img)
+
     except Exception as e:
         logging.error(f'Ошибка при проверке оплаты: {e}')
         await call.answer(

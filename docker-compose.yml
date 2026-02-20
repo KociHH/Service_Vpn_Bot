@@ -1,17 +1,52 @@
 services:
-  broker:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${PGUSER:-postgres}
+      POSTGRES_PASSWORD: ${PASSWORD:-patcher2244}
+      POSTGRES_DB: ${DATABASE:-gino}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
     image: redis:7-alpine
     restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   bot:
     build:
       context: .
     env_file:
       - .env
+    environment:
+      - MODE=TEST
+      - IP=db
+      - DATABASE=gino
+      - LOCAL_REDIS=redis://redis:6379/0
+      - PROD_REDIS=redis://redis:6379/0
     ports:
       - "8000:8000"
     depends_on:
-      - broker
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   celery_worker:
@@ -20,8 +55,17 @@ services:
     command: celery -A celery_habitat.celery_app worker -l info -P solo
     env_file:
       - .env
+    environment:
+      - MODE=TEST
+      - IP=db
+      - DATABASE=gino
+      - LOCAL_REDIS=redis://redis:6379/0
+      - PROD_REDIS=redis://redis:6379/0
     depends_on:
-      - broker
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   celery_beat:
@@ -30,6 +74,19 @@ services:
     command: celery -A celery_habitat.celery_app beat -l info
     env_file:
       - .env
+    environment:
+      - IP=db
+      - DATABASE=gino
+      - LOCAL_REDIS=redis://redis:6379/0
     depends_on:
-      - broker
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
+
+volumes:
+  postgres_data:
+  redis_data:
+
+# docker compose up -d --build bot

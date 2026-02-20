@@ -22,3 +22,7 @@ class PaymentsUserState(StatesGroup):
     filter_month = State()
     filter_year_month = State()
     save_year = State()
+
+class VlessLinkState(StatesGroup):
+    waiting_for_link = State()
+    confirm_link = State()

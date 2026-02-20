@@ -4,7 +4,7 @@ import pytz
 from sqlalchemy import select, LargeBinary
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, func, DateTime
+from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, func, DateTime, Boolean
 from sqlalchemy import  pool
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from utils.work import url_db, currently_msk
@@ -57,6 +57,27 @@ class Subscription(Base):
     start_date = Column(DateTime, nullable=False, default=func.now())
     end_date = Column(DateTime, nullable=False)
     status = Column(String, nullable=False, default="not active")
+
+class TrialSubscription(Base):
+    """
+    user_id: int
+    start_date: datetime
+    end_date: datetime
+    status: str
+    """
+    __tablename__ = "trial_subscribers"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False, unique=True)
+    start_date = Column(DateTime, nullable=False, default=func.now())
+    end_date = Column(DateTime, nullable=False)
+    trial_used = Column(Boolean, nullable=False, default=False)
+
+class VlessLinks(Base):
+    __tablename__ = "vless_links"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    src = Column(String, nullable=False)
+    add_att = Column(DateTime, nullable=False)
+
 
 class PaymentHistory(Base):
     """

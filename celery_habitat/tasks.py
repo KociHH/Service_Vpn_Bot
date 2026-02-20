@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from utils.work import currently_msk
 from aiogram.utils import markdown
 from dotenv import load_dotenv
-from db.tables import Subscription, User
+from db.tables import Subscription, User, TrialSubscription
 from aiogram import Bot
 from settings import BotParams
 from aiogram.client.bot import DefaultBotProperties
@@ -26,85 +26,124 @@ load_dotenv()
 def notify_expiring_subscriptions():
     print("_________________________________________NOTIFY_EXPIRING_SUBSCRIPTIONS_________________________________________")
     end_log = "_______________________________________________________________________________________________________________"
-    bot = Bot(token=BotParams.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     
-    async def _async(bot: Bot, db_session: AsyncSession):
-        sub_dao = BaseDAO(Subscription, db_session)
-        target_date = currently_msk() + timedelta(days=3)
-        target_date = target_date.date()
-
-        # истекает через 3 дня
+    async def _async():
+        bot = Bot(token=BotParams.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        
         try:
-            checked_users = 0
-            expiring_subscriptions = await sub_dao.get_all_column_values(
-                columns=(Subscription.user_id, Subscription.end_date),
-                where=func.date(Subscription.end_date) <= target_date)
+            async with async_session_factory() as db_session:
+                sub_dao = BaseDAO(Subscription, db_session)
+                trial_dao = BaseDAO(TrialSubscription, db_session)
+                target_date = currently_msk() + timedelta(days=3)
+                target_date = target_date.date()
 
-            for user in expiring_subscriptions:
-                user_id = user[0]
-                end_date = user[1]
+                # истекает через 3 дня (только обычные подписки)
+                try:
+                    checked_users = 0
+                    expiring_subscriptions = await sub_dao.get_all_column_values(
+                        columns=(Subscription.user_id, Subscription.end_date),
+                        where=func.date(Subscription.end_date) == target_date)
 
-                logger.info(f"У юзера {user_id} заканчивается подписка через 3 дня.")
-                await bot.send_message(
-                    chat_id=user_id,
-                    text=
-                        f"👋 Здравствуйте!\n\n"
-                        f"⏰ Срок действия вашей подписки истекает через {markdown.hbold("3")} дня, в {markdown.hcode(end_date)} по мск.\n"
-                        f"Просим продлить её, чтобы продолжать пользоваться нашим сервисом.",
-                    reply_markup=Extend_kb(True)
-                    )
-                checked_users += 1
-                await asyncio.sleep(0.2)
+                    for user in expiring_subscriptions:
+                        user_id = user[0]
+                        end_date = user[1]
 
-            if checked_users == 0:
-                logger.info("Не найдено истекающих подписок через 3 дня.")
-            else:
-                logger.info(f"Истекающие подписки {checked_users} юзеров успешно обработаны")
-        except Exception as e:
-            logger.error(f"Ошибка при проверке подписок, заканчивающихся через 3 дня: {e}")
-            print(end_log)
-            
-        # истеченные     
-        try:
-            checked_users = 0
-            expired_subscriptions = await sub_dao.get_all_column_values(
-                Subscription.user_id,
-                where=Subscription.end_date <= currently_msk())
+                        logger.info(f"У юзера {user_id} заканчивается подписка через 3 дня.")
+                        await bot.send_message(
+                            chat_id=user_id,
+                            text=
+                                f"👋 Здравствуйте!\n\n"
+                                f"⏰ Срок действия вашей подписки истекает через {markdown.hbold("3")} дня, в {markdown.hcode(end_date)} по мск.\n"
+                                f"Просим продлить её, чтобы продолжать пользоваться нашим сервисом.",
+                            reply_markup=Extend_kb(True)
+                            )
+                        checked_users += 1
+                        await asyncio.sleep(0.2)
 
-            for user_id in expired_subscriptions:
-                logger.info(f"У юзера {user_id} закончилась подписка.")
+                    if checked_users == 0:
+                        logger.info("Не найдено истекающих подписок через 3 дня.")
+                    else:
+                        logger.info(f"Истекающие подписки {checked_users} юзеров успешно обработаны")
+                except Exception as e:
+                    logger.error(f"Ошибка при проверке подписок, заканчивающихся через 3 дня: {e}")
+                    print(end_log)
+                    
+                # истеченные обычные подписки
+                try:
+                    checked_users = 0
+                    expired_subscriptions = await sub_dao.get_all_column_values(
+                        Subscription.user_id,
+                        where=Subscription.end_date <= currently_msk())
 
-                link = f"tg://user?id={user_id}"
-                await bot.send_message(
-                    chat_id=admin_id,
-                    text=f'У пользователя {markdown.hlink(str(user_id), link)} закончилась подписка.',
-                    )
+                    for user_id in expired_subscriptions:
+                        logger.info(f"У юзера {user_id} закончилась подписка.")
 
-                await sub_dao.delete(Subscription.user_id == user_id)                
-                logger.info(f'Истекшая подписка {user_id} была удалена.')
+                        link = f"tg://user?id={user_id}"
+                        await bot.send_message(
+                            chat_id=admin_id,
+                            text=f'У пользователя {markdown.hlink(str(user_id), link)} закончилась подписка.',
+                            )
 
-                await bot.send_message(
-                    chat_id=user_id,
-                    text=
-                        f"Упс!\n\n"
-                        f"⛓️‍💥 Ваша подписка истекла.\n"
-                        f"Пожалуйста, продлите её, чтобы снова пользоваться {BotParams.name_project} VPN.",
-                    reply_markup=Extend_kb(False)
-                    )
-                checked_users += 1
-                await asyncio.sleep(0.2)
+                        await sub_dao.delete(Subscription.user_id == user_id)                
+                        logger.info(f'Истекшая подписка {user_id} была удалена.')
 
-            if checked_users == 0:
-                logger.info("Не найдено истекших подписок.")
-            else:
-                logger.info(f"Истекшие подписки {checked_users} юзеров успешно обработаны")
-            print(end_log)
-        except Exception as e:
-            logger.error(f"Ошибка при проверке истекших подписок: {e}")
-            print(end_log)
+                        await bot.send_message(
+                            chat_id=user_id,
+                            text=
+                                f"Упс!\n\n"
+                                f"⛓️‍💥 Ваша подписка истекла.\n"
+                                f"Пожалуйста, продлите её, чтобы снова пользоваться {BotParams.name_project} VPN.",
+                            reply_markup=Extend_kb(False)
+                            )
+                        checked_users += 1
+                        await asyncio.sleep(0.2)
+
+                    if checked_users == 0:
+                        logger.info("Не найдено истекших подписок.")
+                    else:
+                        logger.info(f"Истекшие подписки {checked_users} юзеров успешно обработаны")
+                    print(end_log)
+                except Exception as e:
+                    logger.error(f"Ошибка при проверке истекших подписок: {e}")
+                    print(end_log)
+                
+                # проверка истекших пробных подписок
+                try:
+                    checked_trial_users = 0
+                    expired_trial_subscriptions = await trial_dao.get_all_column_values(
+                        TrialSubscription.user_id,
+                        where=TrialSubscription.end_date <= currently_msk())
+
+                    for user_id in expired_trial_subscriptions:
+                        logger.info(f"У юзера {user_id} закончилась пробная подписка.")
+
+                        link = f"tg://user?id={user_id}"
+                        await bot.send_message(
+                            chat_id=admin_id,
+                            text=f'У пользователя {markdown.hlink(str(user_id), link)} закончилась пробная подписка.',
+                            )
+
+                        await bot.send_message(
+                            chat_id=user_id,
+                            text=
+                                f"Упс!\n\n"
+                                f"⛓️‍💥 Ваша пробная подписка истекла.\n"
+                                f"Приобретите полную подписку, чтобы продолжить пользоваться {BotParams.name_project} VPN.",
+                            reply_markup=Extend_kb(False)
+                            )
+                        checked_trial_users += 1
+                        await asyncio.sleep(0.2)
+
+                    if checked_trial_users == 0:
+                        logger.info("Не найдено истекших пробных подписок.")
+                    else:
+                        logger.info(f"Истекшие пробные подписки {checked_trial_users} юзеров успешно обработаны")
+                    print(end_log)
+                except Exception as e:
+                    logger.error(f"Ошибка при проверке истекших пробных подписок: {e}")
+                    print(end_log)
+        finally:
+            await bot.session.close()
     
-    async def run_celery_task():
-        async with async_session_factory() as session:
-            await _async(bot, session)
-    asyncio.run(run_celery_task())
+    asyncio.run(_async())
 

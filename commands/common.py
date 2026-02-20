@@ -8,12 +8,12 @@ from aiogram.filters import Command, StateFilter
 from aiogram import Router
 import asyncio
 from settings import BotParams
-from FSM.states import Admin, PaymentsUserState, NewSletterState
-from db.tables import User, Subscription, Images, PaymentHistory
+from FSM.states import Admin, PaymentsUserState, NewSletterState, VlessLinkState
+from db.tables import User, Subscription, Images, PaymentHistory, VlessLinks, TrialSubscription
 from keyboards.inline_keyboard.common import Main_menu, slide_kb
 from keyboards.reply_keyboard.admin_panel import admin_kb, continue_bt, count_year_month_bt, main_menu_kb, years_dinamic_bt, yes_no_kb, yes_no, exit_, payments_kb, change_content_send_bt, months_input_bt
 from utils.load_image import ImageProcessing
-from utils.other import CountFilterPayments, samples_
+from utils.other import CountFilterPayments, samples_, main_photo
 from utils.work import currently_msk, url_support
 from utils.other import create_slide_payments_bt, OperationNames
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +24,7 @@ from aiogram.client.bot import DefaultBotProperties
 from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaDocument, InputMediaAnimation
+from aiogram.types import FSInputFile
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -641,6 +642,88 @@ async def user_payments_processing(message: Message, db_session: AsyncSession):
     )
 
 
+@router.message(F.text == MainButtons.load_link_vless, StateFilter(Admin.admin))
+async def load_vless_link(message: Message, state: FSMContext):
+    await state.set_state(VlessLinkState.waiting_for_link)
+    await message.answer(
+        text="📎 Отправьте vless ссылку для сохранения в базу данных:",
+        reply_markup=exit_()
+    )
+
+
+@router.message(StateFilter(VlessLinkState.waiting_for_link))
+async def process_vless_link(message: Message, state: FSMContext):
+    link = message.text
+    
+    if not link or not link.startswith('vless://'):
+        await message.answer(
+            text="❌ Неверный формат ссылки. Ссылка должна начинаться с 'vless://'\n"
+                 "Попробуйте еще раз:",
+        )
+        return
+    
+    await state.update_data(vless_link=link)
+    await state.set_state(VlessLinkState.confirm_link)
+    
+    await message.answer(
+        text=f"✅ Ссылка получена:\n\n{markdown.hcode(link)}\n\n"
+             "Вы уверены, что хотите сохранить эту ссылку?",
+        reply_markup=yes_no()
+    )
+
+
+@router.message(F.text == 'Да', StateFilter(VlessLinkState.confirm_link))
+async def confirm_vless_link(message: Message, state: FSMContext, db_session: AsyncSession):
+    data = await state.get_data()
+    vless_link = data.get('vless_link')
+    
+    if not vless_link:
+        await message.answer(
+            text="❌ Ссылка не найдена. Попробуйте снова.",
+            reply_markup=main_menu_kb()
+        )
+        await state.set_state(Admin.admin)
+        return
+    
+    try:
+        vless_dao = BaseDAO(VlessLinks, db_session)
+        link_data = {
+            "src": vless_link,
+            "add_att": currently_msk()
+        }
+        
+        created = await vless_dao.create(link_data)
+        
+        if created:
+            await message.answer(
+                text=f"✅ Ссылка успешно сохранена в базу данных!\n"
+                     f"🕐 Время добавления: {markdown.hcode(currently_msk())}",
+                reply_markup=main_menu_kb()
+            )
+        else:
+            await message.answer(
+                text="❌ Ошибка при сохранении ссылки в базу данных.",
+                reply_markup=main_menu_kb()
+            )
+    except Exception as e:
+        logger.error(f"Ошибка при сохранении vless ссылки: {e}")
+        await message.answer(
+            text="❌ Произошла ошибка при сохранении ссылки.",
+            reply_markup=main_menu_kb()
+        )
+    
+    await state.set_state(Admin.admin)
+
+
+@router.message(F.text == 'Нет', StateFilter(VlessLinkState.confirm_link))
+async def cancel_vless_link(message: Message, state: FSMContext):
+    await message.answer(
+        text="❌ Сохранение ссылки отменено.",
+        reply_markup=main_menu_kb()
+    )
+    await state.set_state(Admin.admin)
+
+
 @router.message(Command(commands=['help', 'admin', 'status', 'start']), StateFilter("*"))
 async def handle_commands_in_state(message: Message, state: FSMContext, db_session: AsyncSession):
 
@@ -730,17 +813,32 @@ async def start_handler(message: Message, db_session: AsyncSession):
             logger.error(f"Не создался юзер {user_id}")
             return
 
-    text = markdown.text(
-        f"{markdown.hbold(f'Здравствуйте, {message.from_user.full_name}!')}\n\n"
-        f"{markdown.hbold(f'🗝️ Познакомьтесь с {BotParams.name_project} VPN:')}\n",
-        "— Скорость до 10 Гбит/с",
-        "— Непрерывная маскировка",
-        "— Современный интерфейс\n",
-        f"{markdown.hbold(f'💳 Оплата картами РФ и СБП')}",
-        sep='\n',
-    )
+    trial_dao = BaseDAO(TrialSubscription, db_session)
+    trial_subscription = await trial_dao.get_one(TrialSubscription.user_id == user_id)
+    
+    show_trial = not (trial_subscription and trial_subscription.trial_used)
 
-    await message.answer(text, reply_markup=Main_menu())
+    text = markdown.text(
+        f"{markdown.hbold('🔓 Познакомься с Shade VPN:')}\n\n"
+    
+        "— Скорость до 1 Гбит/с\n"
+        "— No-Logs политика\n"
+        "— Подписка до 3 устройств\n"
+        "— Непрерывная маскировка\n"
+        "— Современный интерфейс\n"
+        "— Поддержка Android, IOS, Windows, MacOS, AndroidTV, Linux\n\n"
+        
+        "🔥 Подписывайся на наш канал по кибербезопасности!\n\n",
+        
+        "🎉 Держи бесплатную пробную подписку на Shade VPN на 3 дня абсолютно бесплатно!\n" if show_trial else "",
+        sep=""
+    )
+    
+    await message.answer_photo(
+        photo=main_photo,
+        caption=text,
+        reply_markup=Main_menu(show_trial=show_trial)
+    )
 
 
 @router.message(Command('status', prefix='/'))

@@ -3,6 +3,7 @@ class MainButtons:
     load_files = '🛠 Загрузить файлы'
     check_images = "🧠 Проверить кол-во фото в бд"
     info_payments = "💲 Информация о платежах"
+    load_link_vless = "Загрузить ссылку vless:"
 
 class NewsletterButtons:
     change_message = '📝 Изменить сообщение'

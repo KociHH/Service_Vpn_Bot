@@ -9,7 +9,6 @@ from settings import BotParams
 class Month:
     One_month = "One_month"
     Two_month = "Two_month"
-    Tree_month = "Tree_month"
 
 class Main:
     extend = "extend"
@@ -29,17 +28,19 @@ class Price_and_us_and:
         self.us = us
         self.month = month
 
-info = Price_and_us_and(price=390.00, month=1, description=f'{BotParams.name_project} VPN на 1 месяц')
-info2 = Price_and_us_and(price=990.00, month=3, description=f'{BotParams.name_project} VPN на 3 месяца')
-info3 = Price_and_us_and(price=1690.00, month=6, description=f'{BotParams.name_project} VPN на 6 месяцев')
+info = Price_and_us_and(price=199.00, month=1, description=f'{BotParams.name_project} VPN на 1 месяц')
+info2 = Price_and_us_and(price=449.00, month=3, description=f'{BotParams.name_project} VPN на 3 месяца')
 
-info_price_249 = Price_and_us_and('390₽ (-11%)', 1)
-info_price_579 = Price_and_us_and('990₽ (-23%)', 3)
-info_price_979 = Price_and_us_and('1690₽ (-35%)', 6)
+info_price_249 = Price_and_us_and('199₽ (-11%)', 1)
+info_price_579 = Price_and_us_and('449₽ (-23%)', 3)
 
-def Main_menu() -> InlineKeyboardMarkup:
+def Main_menu(show_trial: bool = True) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
+    if show_trial:
+        builder.button(
+            text='Пробный доступ',
+            callback_data=Main.gift_free_subscription)
     builder.button(
         text='Приобрести VPN',
         callback_data=Main.purchase),
@@ -49,12 +50,6 @@ def Main_menu() -> InlineKeyboardMarkup:
     builder.button(
         text='Поддержка',
         callback_data=Main.Support)
-    builder.button(
-        text='Пробный доступ',
-        callback_data=Main.gift_free_subscription)
-    builder.button(
-        text='Наш телеграм чат',
-        url=BotParams.username_channel)
     
     builder.adjust(1)
     return builder.as_markup()
@@ -68,9 +63,6 @@ def Month_kb() -> InlineKeyboardMarkup:
     builder.button(
         text='3 месяца',
         callback_data=Month.Two_month)
-    builder.button(
-        text='6 месяцев',
-        callback_data=Month.Tree_month)
     builder.button(
         text='⬅️ Назад',
         callback_data=Main.MAIN,)

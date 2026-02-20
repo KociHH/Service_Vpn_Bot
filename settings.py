@@ -25,6 +25,7 @@ class BotParams:
     admin_id_test = os.getenv("ADMIN_ID_TEST")
     admin_id_prod = os.getenv("ADMIN_ID")
     username_bot = os.getenv("USERNAME_BOT")
+    id_channel = os.getenv("ID_CHANNEL")
 
 class WEBHOOK:
     port = int(os.getenv('PORT'))
@@ -36,21 +37,21 @@ class WEBHOOK:
     port_TIMEWEB = int(os.getenv("PORT_TIMEWEB"))
 
 class SqlLocalhost:
-    ip = os.getenv('IP')
-    PASSWORD = os.getenv('PASSWORD')
-    DATABASE = os.getenv('DATABASE')
-    PGUSER = os.getenv('PGUSER')
+    ip = os.getenv('IP', 'db')
+    PASSWORD = os.getenv('PASSWORD', 'patcher2244')
+    DATABASE = os.getenv('DATABASE', 'gino')
+    PGUSER = os.getenv('PGUSER', 'postgres')
 
     postgres_url = f'postgresql+asyncpg://{PGUSER}:{PASSWORD}@{ip}/{DATABASE}'
 
 logger.info(SqlLocalhost.postgres_url)
 
 class SqlPublic:
-    DATABASE_URL_PUBLIC = os.getenv("DATABASE_URL_PUBLIC")
+    DATABASE_URL_PUBLIC = f'postgresql+asyncpg://postgres:patcher2244@db/gino'
 
 class RedisBD:
-    LOCAL_REDIS = os.getenv("LOCAL_REDIS")
-    PROD_REDIS = os.getenv("PROD_REDIS")
+    LOCAL_REDIS = os.getenv("LOCAL_REDIS", "redis://redis:6379/0")
+    PROD_REDIS = os.getenv("PROD_REDIS", "redis://redis:6379/0")
 
 class SqlUrlService:
     urls_base = {
