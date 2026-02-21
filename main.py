@@ -31,8 +31,9 @@ dp = Dispatcher()
 dp.include_routers(commands_router)
 bot = Bot(token=BotParams.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
+dp.message.middleware(CheckSubcription(async_session))
+dp.callback_query.middleware(CheckSubcription(async_session))
 dp.update.middleware(DatabaseMiddleware(async_session))
-dp.update.middleware(CheckSubcription(async_session))
 
 webhook_bool = False
 app = FastAPI()

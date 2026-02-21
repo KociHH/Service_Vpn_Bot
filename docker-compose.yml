@@ -56,7 +56,6 @@ services:
     env_file:
       - .env
     environment:
-      - MODE=TEST
       - IP=db
       - DATABASE=gino
       - LOCAL_REDIS=redis://redis:6379/0

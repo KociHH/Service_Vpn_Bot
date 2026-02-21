@@ -44,9 +44,9 @@ def Main_menu(show_trial: bool = True) -> InlineKeyboardMarkup:
     builder.button(
         text='Приобрести VPN',
         callback_data=Main.purchase),
-    builder.button(
-        text='Наши преимущества',
-        callback_data=Main.advantages)
+    # builder.button(
+    #     text='Наши преимущества',
+    #     callback_data=Main.advantages)
     builder.button(
         text='Поддержка',
         callback_data=Main.Support)

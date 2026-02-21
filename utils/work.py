@@ -2,31 +2,40 @@ from settings import WEBHOOK, SqlLocalhost, BotParams, RedisBD, SqlPublic
 from kos_Htools.utils.time import DateTemplate
 import logging
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Принудительно устанавливаем TEST режим
-mode = "TEST"
+mode = os.getenv("MODE", "TEST").upper()
 
-# Принудительно используем локальные настройки
-webhook = WEBHOOK.WEBHOOK_URL
-port = WEBHOOK.port
-host = WEBHOOK.host
-
-yookassa_bool = True
-url_db = SqlLocalhost.postgres_url
-username_support = BotParams.username_support_test
-redis_url = RedisBD.LOCAL_REDIS
-admin_id = BotParams.admin_id_test
+if mode == "PROD":
+    webhook = WEBHOOK.WEBHOOK_PATH_TIMEWEB
+    port = WEBHOOK.port_TIMEWEB
+    host = WEBHOOK.host_TIMEWEB
+    yookassa_bool = False
+    url_db = SqlLocalhost.postgres_url
+    username_support = BotParams.username_support
+    redis_url = RedisBD.PROD_REDIS
+    admin_id = BotParams.admin_id_prod
+else:
+    webhook = WEBHOOK.WEBHOOK_URL
+    port = WEBHOOK.port
+    host = WEBHOOK.host
+    yookassa_bool = True
+    url_db = SqlLocalhost.postgres_url
+    username_support = BotParams.username_support_test
+    redis_url = RedisBD.LOCAL_REDIS
+    admin_id = BotParams.admin_id_test
     
 url_support = f"https://t.me/{username_support}"
 
 def currently_msk():
     return DateTemplate().conclusion_date(option="time_now").replace(tzinfo=None)
 
-print(f"""
-MODE: {mode} (FORCED TEST)
+logger.info(f"""
+MODE: {mode}
 WEBHOOK: {webhook} 
 PORT: {port}
 HOST: {host}

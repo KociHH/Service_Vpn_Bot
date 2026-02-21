@@ -82,35 +82,32 @@ class CheckSubcription(BaseMiddleware):
         event: TelegramObject,
         data: str | Any,
     ) -> Any:
-        bot: Bot = data.get("bot")
+        logger.info(f"CheckSubcription middleware вызван для события: {type(event).__name__}")
         
-        if isinstance(event, (Message, CallbackQuery)):
-            user_id = event.from_user.id if event.from_user else None
+        bot: Bot = data.get("bot")
+        user_id = event.from_user.id if hasattr(event, 'from_user') and event.from_user else None
+        
+        logger.info(f"Middleware CheckSubcription: обрабатываем пользователя {user_id}")
+        logger.info(f"username_channel из настроек: {BotParams.username_channel}")
+        
+        if user_id and BotParams.username_channel:
+            logger.info(f"Проверяем подписку пользователя {user_id} на канал {BotParams.username_channel}")
             
-            logger.info(f"Middleware CheckSubcription: обрабатываем пользователя {user_id}")
+            is_subscribed = await self._check_channel_subscription(
+                bot, user_id, BotParams.username_channel
+            )
             
-            if user_id and BotParams.username_channel:
-                logger.info(f"Проверяем подписку пользователя {user_id} на канал {BotParams.username_channel}")
-                
-                is_subscribed = await self._check_channel_subscription(
+            logger.info(f"Результат проверки подписки для пользователя {user_id}: {is_subscribed}")
+            
+            if not is_subscribed:
+                logger.info(f"Пользователь {user_id} не подписан, отправляем сообщение")
+                await self._send_subscription_message(
                     bot, user_id, BotParams.username_channel
                 )
-                
-                logger.info(f"Результат проверки подписки для пользователя {user_id}: {is_subscribed}")
-                
-                if not is_subscribed:
-                    logger.info(f"Пользователь {user_id} не подписан, отправляем сообщение")
-                    await self._send_subscription_message(
-                        bot, user_id, BotParams.username_channel
-                    )
-                    return None
-                else:
-                    logger.info(f"Пользователь {user_id} подписан, пропускаем дальше")
+                return None
             else:
-                logger.info(f"Пропускаем проверку: user_id={user_id}, channel={BotParams.username_channel}")
+                logger.info(f"Пользователь {user_id} подписан, пропускаем дальше")
+        else:
+            logger.info(f"Пропускаем проверку: user_id={user_id}, channel={BotParams.username_channel}")
 
-        async with self.session_factory() as session:
-            data["db_session"] = session
-            result = await handler(event, data)
-            await session.commit()
-            return result
+        return await handler(event, data)
