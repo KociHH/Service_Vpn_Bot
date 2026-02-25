@@ -65,6 +65,7 @@ async def bot_webhook(request: Request):
 
 if __name__ == "__main__":
     asyncio.run(create_tables())
+    
     if webhook_bool:
         uvicorn.run(app, host=host, port=port)
     else:
