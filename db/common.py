@@ -13,8 +13,6 @@ from db.tables import User, Subscription, Images, PaymentHistory
 from keyboards.inline_keyboard.common import Main_menu, slide_kb
 from keyboards.reply_keyboard.admin_panel import admin_kb, continue_bt, main_menu_kb, yes_no_kb, yes_no, exit_, payments_kb, change_content_send_bt, months_input_bt
 from utils.load_image import ImageProcessing
-from utils.other import samples_
-from utils.work import url_support
 from utils.other import create_slide_payments_bt, OperationNames
 from sqlalchemy.ext.asyncio import AsyncSession
 from kos_Htools.sql.sql_alchemy.dao import BaseDAO
@@ -382,15 +380,15 @@ async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSe
             error_count += 1
             logging.error(f"Ошибка отправки сообщения пользователю {user_id_single}: {e}")
 
-    result_text = [
-        f"📊 Статистика рассылки:\n",
-        f"👥 Всего пользователей:ㅤ{markdown.hbold(str(total_users))}\n",
-        f"✅ Успешно отправлено:ㅤ{markdown.hbold(str(sent_count))}\n",
-        f"❌ Не было отправленно:ㅤ{markdown.hbold(str(error_count))}",
-    ]
+    text = (
+        f"📊 Статистика рассылки:\n\n"
+        f"👥 Всего пользователей:ㅤ{markdown.hbold(str(total_users))}\n"
+        f"✅ Успешно отправлено:ㅤ{markdown.hbold(str(sent_count))}\n"
+        f"❌ Не было отправленно:ㅤ{markdown.hbold(str(error_count))}"
+    )
 
     await message.answer(
-        samples_(result_text),
+        text,
         reply_markup=main_menu_kb()
     )
     await state.set_state(Admin.admin)
@@ -651,26 +649,6 @@ async def start_handler(message: Message, db_session: AsyncSession):
     )
 
     await message.answer(text, reply_markup=Main_menu())
-
-
-@router.message(Command('status', prefix='/'))
-async def status_command(message: Message, db_session: AsyncSession):
-    chat_id = message.from_user.id
-
-    sub_dao = BaseDAO(Subscription, db_session)
-    subscription = await sub_dao.get_one(Subscription.user_id == chat_id)
-
-    if subscription:
-        l = [
-            "📄 Информация о вашей подписке:",
-            f"🗓 Дата первой оплаты: {markdown.hcode(subscription.start_date)}",
-            f"📅 Дата окончания: {markdown.hcode(subscription.end_date)}",
-            f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'Не активный')}"]
-        await message.answer(
-            samples_(l)
-        )
-    else:
-        await message.answer('🧐 Вы в данный момент не пользуютесь (пользовались) нашими услугами.')
 
 
 @router.message(Command('help', prefix='/'))

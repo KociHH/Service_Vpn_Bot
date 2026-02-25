@@ -160,44 +160,46 @@ class ImageProcessing:
                 start_date = src.start_date
                 end_date = src.end_date
                 package_sub.append((start_date, end_date))
+                
+                vless_link_id = src.vless_link_id
+                
+                if vless_link_id:
+                    vless_dao = BaseDAO(VlessLinks, self.db_session)
+                    vless_link_obj = await vless_dao.get_one(VlessLinks.id == vless_link_id)
+                    
+                    if vless_link_obj:
+                        vless_link = vless_link_obj.src
+                        
+                        text = (f"Твой доступ к VPN готов 🚀\n\n"
+                               f"Вот твоя персональная ссылка (VLESS):\n\n"
+                               f"🔑 {markdown.hcode(vless_link)}\n\n"
+                               f"Как подключиться:\n"
+                               f"1. Скопируй ссылку\n"
+                               f"2. Вставь её в клиент (Happ, V2RayTun, Hiddify)\n"
+                               f"3. Подключайся и кайфуй от интернета без блокировок\n\n"
+                               f"Если не работает — пиши в поддержку")
 
-            vless_dao = BaseDAO(VlessLinks, self.db_session)
-            all_links = await vless_dao.get_all()
-            
-            if all_links:
-                selected_link = random.choice(all_links)
-                vless_link = selected_link.src
-                link_id = selected_link.id
-                
-                text = (f"Твой доступ к VPN готов 🚀\n\n"
-                       f"Вот твоя персональная ссылка (VLESS):\n\n"
-                       f"🔐 {markdown.hcode(vless_link)}\n\n"
-                       f"Как подключиться:\n"
-                       f"1. Скопируй ссылку\n"
-                       f"2. Вставь её в клиент (Happ, V2RayTun, Hiddify)\n"
-                       f"3. Подключайся и кайфуй от интернета без блокировок\n\n"
-                       f"Если не работает — пиши в поддержку")
-
-                await message.message.answer(text=text)
-                
-                await vless_dao.delete(VlessLinks.id == link_id)
-                logger.info(f"Удалена vless ссылка с id {link_id} для пользователя {user_id}")
-                
-                return vless_link, link_id, package_sub
-                
-            else:
-                keyboard = InlineKeyboardButton(
-                    text="🤝 Обратиться в поддержку",
-                    url='https://t.me/tripleswaga'
-                )
-                button_support = InlineKeyboardMarkup(inline_keyboard=[[keyboard]])
-                await message.message.answer(
-                    text=
-                    f'Извините, сейчас нет доступных ссылок.\n'
-                    f'Нажмите на кнопку ниже, чтобы оповестить нас и мы выдадим новую ссылку.',
-                    reply_markup=button_support
-                )
-                return None, None, package_sub
+                        await message.message.answer(text=text)
+                        logger.info(f"Отправлена vless ссылка с id {vless_link_id} для пользователя {user_id}")
+                        
+                        return vless_link, vless_link_id, package_sub
+                    else:
+                        logger.error(f"VLESS ключ с id {vless_link_id} не найден в базе для пользователя {user_id}")
+                else:
+                    logger.warning(f"У пользователя {user_id} нет привязанного VLESS ключа")
+                    
+            keyboard = InlineKeyboardButton(
+                text="🤝 Обратиться в поддержку",
+                url='https://t.me/tripleswaga'
+            )
+            button_support = InlineKeyboardMarkup(inline_keyboard=[[keyboard]])
+            await message.message.answer(
+                text=
+                f'Извините, у вас нет активной подписки или ключа.\n'
+                f'Нажмите на кнопку ниже, чтобы оповестить нас.',
+                reply_markup=button_support
+            )
+            return None, None, package_sub
 
         except Exception as e:
             logger.error(f'Ошибка в send_crcode: {e}')

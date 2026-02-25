@@ -40,7 +40,8 @@ def Main_menu(show_trial: bool = True) -> InlineKeyboardMarkup:
     if show_trial:
         builder.button(
             text='Пробный доступ',
-            callback_data=Main.gift_free_subscription)
+            callback_data=Main.gift_free_subscription
+            )
     builder.button(
         text='Приобрести VPN',
         callback_data=Main.purchase),

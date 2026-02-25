@@ -124,15 +124,18 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
         for start_unpack, end_unpack in sub:
             start, end = start_unpack, end_unpack
 
-        if id_img and name == 'Неизвестно':
+        if not id_img or not name:
             link = 'Прямая ссылка'
             await call.message.bot.send_message(
                 chat_id = admin_id,
                 text=
-                f'Сылки закончились напиши {username} если нет то,\n'
-                f'его {markdown.hlink(f"{link}", f"tg://user?id={user_id}")}\n'
-                f'Он оплатил на {markdown.hbold(month)} месяц(-а); сумма: {payment_amount}₽'
+                f'⚠️ У пользователя нет VLESS ключа!\n\n'
+                f'Пользователь: {username or "Не указан"} {markdown.hlink("(ссылка)", f"tg://user?id={user_id}")}\n'
+                f'user_id: {user_id}\n'
+                f'Оплатил на {markdown.hbold(month)} месяц(-а); сумма: {payment_amount}₽\n\n'
+                f'Подписка создана, но ключ не выдан (нет свободных ключей в базе).'
             )
+            logger.warning(f"Пользователь {user_id} оплатил, но ключ не выдан (нет свободных ключей)")
             return
 
         await call.message.bot.send_message(
@@ -144,8 +147,8 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
             f'user_id: {user_id}\n\n'
 
             f"{markdown.hbold("VLESS ссылка")}:\n"
-            f"Ссылка: {markdown.hcode(name) if name else 'Не указана'}\n"
-            f'ID ссылки: {id_img if id_img else "Не указан"}\n\n'
+            f"Ссылка: {markdown.hcode(name)}\n"
+            f'ID ссылки: {id_img}\n\n'
 
             f"{markdown.hbold('Время')}:\n"
             f"Время первого платежа: {markdown.hcode(start)}\n"
@@ -157,8 +160,8 @@ async def check_handler(call: Union[CallbackQuery, Message], state: FSMContext, 
             f'user_id: {user_id}\n\n'
 
             f"VLESS ссылка:\n"  
-            f"Ссылка: {name if name else 'Не указана'}\n"
-            f'ID ссылки: {id_img if id_img else "Не указан"}\n\n'
+            f"Ссылка: {name}\n"
+            f'ID ссылки: {id_img}\n\n'
 
             f"Время:\n"
             f"Время первого платежа: {start}\n"

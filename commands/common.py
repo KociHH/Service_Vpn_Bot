@@ -13,7 +13,7 @@ from db.tables import User, Subscription, Images, PaymentHistory, VlessLinks, Tr
 from keyboards.inline_keyboard.common import Main_menu, slide_kb
 from keyboards.reply_keyboard.admin_panel import admin_kb, continue_bt, count_year_month_bt, main_menu_kb, years_dinamic_bt, yes_no_kb, yes_no, exit_, payments_kb, change_content_send_bt, months_input_bt
 from utils.load_image import ImageProcessing
-from utils.other import CountFilterPayments, samples_, main_photo
+from utils.other import CountFilterPayments, main_photo
 from utils.work import currently_msk, url_support
 from utils.other import create_slide_payments_bt, OperationNames
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -383,15 +383,15 @@ async def rassilka_text(message: Message, state: FSMContext, db_session: AsyncSe
             error_count += 1
             logging.error(f"Ошибка отправки сообщения пользователю {user_id_single}: {e}")
 
-    result_text = [
-        f"📊 Статистика рассылки:\n",
-        f"👥 Всего пользователей:ㅤ{markdown.hbold(str(total_users))}\n",
-        f"✅ Успешно отправлено:ㅤ{markdown.hbold(str(sent_count))}\n",
-        f"❌ Не было отправленно:ㅤ{markdown.hbold(str(error_count))}",
-    ]
+    text = (
+        f"📊 Статистика рассылки:\n\n"
+        f"👥 Всего пользователей:ㅤ{markdown.hbold(str(total_users))}\n"
+        f"✅ Успешно отправлено:ㅤ{markdown.hbold(str(sent_count))}\n"
+        f"❌ Не было отправленно:ㅤ{markdown.hbold(str(error_count))}"
+    )
 
     await message.answer(
-        samples_(result_text),
+        text,
         reply_markup=main_menu_kb()
     )
     await state.set_state(Admin.admin)
@@ -846,17 +846,80 @@ async def status_command(message: Message, db_session: AsyncSession):
     chat_id = message.from_user.id
 
     sub_dao = BaseDAO(Subscription, db_session)
+    trial_dao = BaseDAO(TrialSubscription, db_session)
+    vless_dao = BaseDAO(VlessLinks, db_session)
+    
     subscription = await sub_dao.get_one(Subscription.user_id == chat_id)
-
-    if subscription:
-        l = [
-            "📄 Информация о вашей подписке:",
-            f"🗓 Дата первой оплаты: {markdown.hcode(subscription.start_date)}",
-            f"📅 Дата окончания: {markdown.hcode(subscription.end_date)}",
-            f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'Не активный')}"]
-        await message.answer(
-            samples_(l)
+    trial_subscription = await trial_dao.get_one(TrialSubscription.user_id == chat_id)
+    
+    # Проверяем активна ли пробная подписка
+    has_active_trial = trial_subscription and trial_subscription.start_date and trial_subscription.end_date
+    
+    # Если есть обе подписки
+    if subscription and has_active_trial:
+        # Получаем VLESS ключи через vless_link_id
+        main_vless_key = "Ключ не найден"
+        if subscription.vless_link_id:
+            main_link = await vless_dao.get_one(VlessLinks.id == subscription.vless_link_id)
+            if main_link:
+                main_vless_key = main_link.src
+        
+        trial_vless_key = "Ключ не найден"
+        if trial_subscription.vless_link_id:
+            trial_link = await vless_dao.get_one(VlessLinks.id == trial_subscription.vless_link_id)
+            if trial_link:
+                trial_vless_key = trial_link.src
+        
+        text = (
+            f"📄 Информация о ваших подписках:\n\n"
+            f"💎 {markdown.hbold('Основная подписка:')}\n"
+            f"🗓 Дата первой оплаты: {markdown.hcode(subscription.start_date.strftime('%d.%m.%Y %H:%M'))}\n"
+            f"📅 Дата окончания: {markdown.hcode(subscription.end_date.strftime('%d.%m.%Y %H:%M'))}\n"
+            f"📌 Статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'Не активный')}\n"
+            f"🔑 VLESS ключ:\n{markdown.hcode(main_vless_key)}\n\n"
+            f"🎁 {markdown.hbold('Пробная подписка:')}\n"
+            f"🗓 Дата начала: {markdown.hcode(trial_subscription.start_date.strftime('%d.%m.%Y %H:%M'))}\n"
+            f"📅 Дата окончания: {markdown.hcode(trial_subscription.end_date.strftime('%d.%m.%Y %H:%M'))}\n"
+            f"📌 Статус: {markdown.hcode('Активна')}\n"
+            f"🔑 VLESS ключ:\n{markdown.hcode(trial_vless_key)}"
         )
+        await message.answer(text)
+    
+    # Только основная подписка
+    elif subscription:
+        vless_key = "Ключ не найден"
+        if subscription.vless_link_id:
+            user_link = await vless_dao.get_one(VlessLinks.id == subscription.vless_link_id)
+            if user_link:
+                vless_key = user_link.src
+        
+        text = (
+            f"📄 Информация о вашей подписке:\n\n"
+            f"🗓 Дата первой оплаты: {markdown.hcode(subscription.start_date.strftime('%d.%m.%Y %H:%M'))}\n"
+            f"📅 Дата окончания: {markdown.hcode(subscription.end_date.strftime('%d.%m.%Y %H:%M'))}\n"
+            f"📌 Ваш статус: {markdown.hcode('Активный' if subscription.status == 'active' else 'Не активный')}\n"
+            f"🔑 VLESS ключ:\n{markdown.hcode(vless_key)}"
+        )
+        await message.answer(text)
+    
+    # Только пробная подписка
+    elif has_active_trial:
+        vless_key = "Ключ не найден"
+        if trial_subscription.vless_link_id:
+            user_link = await vless_dao.get_one(VlessLinks.id == trial_subscription.vless_link_id)
+            if user_link:
+                vless_key = user_link.src
+        
+        text = (
+            f"📄 Информация о вашей пробной подписке:\n\n"
+            f"🗓 Дата начала: {markdown.hcode(trial_subscription.start_date.strftime('%d.%m.%Y %H:%M'))}\n"
+            f"📅 Дата окончания: {markdown.hcode(trial_subscription.end_date.strftime('%d.%m.%Y %H:%M'))}\n"
+            f"📌 Статус: {markdown.hcode('Активна')}\n"
+            f"🔑 VLESS ключ:\n{markdown.hcode(vless_key)}"
+        )
+        await message.answer(text)
+    
+    # Нет активных подписок
     else:
         await message.answer('🧐 Вы в данный момент не пользуютесь (пользовались) нашими услугами.')
 

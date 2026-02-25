@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pytz
 from sqlalchemy import select, LargeBinary
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, func, DateTime, Boolean
 from sqlalchemy import  pool
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -50,6 +50,7 @@ class Subscription(Base):
     start_date: datetime
     end_date: datetime
     status: str
+    vless_link_id: int (FK to VlessLinks)
     """
     __tablename__ = "subscribers"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
@@ -57,27 +58,40 @@ class Subscription(Base):
     start_date = Column(DateTime, nullable=False, default=func.now())
     end_date = Column(DateTime, nullable=False)
     status = Column(String, nullable=False, default="not active")
+    vless_link_id = Column(BigInteger, ForeignKey('vless_links.id', ondelete='SET NULL'), nullable=True)
+    
+    # Отношение к VLESS ключу
+    vless_link = relationship("VlessLinks", foreign_keys=[vless_link_id])
 
 class TrialSubscription(Base):
     """
     user_id: int
-    start_date: datetime
-    end_date: datetime
-    status: str
+    start_date: datetime | None
+    end_date: datetime | None
+    trial_used: bool
+    vless_link_id: int (FK to VlessLinks)
     """
     __tablename__ = "trial_subscribers"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=False, unique=True)
-    start_date = Column(DateTime, nullable=False, default=func.now())
-    end_date = Column(DateTime, nullable=False)
+    start_date = Column(DateTime, nullable=True, default=func.now())
+    end_date = Column(DateTime, nullable=True)
     trial_used = Column(Boolean, nullable=False, default=False)
+    vless_link_id = Column(BigInteger, ForeignKey('vless_links.id', ondelete='SET NULL'), nullable=True)
+    
+    # Отношение к VLESS ключу
+    vless_link = relationship("VlessLinks", foreign_keys=[vless_link_id])
 
 class VlessLinks(Base):
     __tablename__ = "vless_links"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     src = Column(String, nullable=False)
     add_att = Column(DateTime, nullable=False)
-
+    using = Column(Boolean, nullable=False, default=False)
+    user_id = Column(BigInteger, ForeignKey('users.user_id'), nullable=True)
+    
+    # Отношение к пользователю
+    user = relationship("User", foreign_keys=[user_id], backref="vless_links")
 
 class PaymentHistory(Base):
     """
@@ -104,6 +118,7 @@ class subscriber:
             ):
         self.user_id = user_id
         self.month = month
+        self.db_session = db_session
         self.sub_dao = BaseDAO(Subscription, db_session)
 
 
@@ -125,16 +140,78 @@ class subscriber:
         new_end_date = current_date + timedelta(days=month_days)
 
         existing_subscription = await self.sub_dao.get_one(Subscription.user_id == self.user_id)
+        
+        # Получаем VLESS DAO
+        vless_dao = BaseDAO(VlessLinks, self.db_session)
+        
+        # Проверяем нужно ли выдавать новый ключ
+        need_new_key = False
+        new_link_id = None
+        
+        if existing_subscription:
+            old_end_date = existing_subscription.end_date
+            # Если подписка истекла, нужен новый ключ
+            if old_end_date <= current_date:
+                need_new_key = True
+                # Удаляем старый ключ если он был
+                if existing_subscription.vless_link_id:
+                    await vless_dao.delete(VlessLinks.id == existing_subscription.vless_link_id)
+                    logger.info(f"Удален старый VLESS ключ (id: {existing_subscription.vless_link_id}) пользователя {self.user_id}")
+            # Если у подписки нет ключа - выдаем новый
+            elif not existing_subscription.vless_link_id:
+                need_new_key = True
+                logger.info(f"У подписки пользователя {self.user_id} нет ключа, выдаем новый")
+        else:
+            # Новая подписка - нужен ключ
+            need_new_key = True
+        
+        # Выдаем новый ключ если нужно
+        if need_new_key:
+            # Получаем ID ключа из триальной подписки, чтобы исключить его
+            trial_dao = BaseDAO(TrialSubscription, self.db_session)
+            trial_subscription = await trial_dao.get_one(TrialSubscription.user_id == self.user_id)
+            trial_link_id = trial_subscription.vless_link_id if trial_subscription else None
+            
+            # Ищем свободные ключи
+            all_links = await vless_dao.get_all(VlessLinks.using == False)
+            
+            # Исключаем ключ из триальной подписки
+            if trial_link_id:
+                all_links = [link for link in all_links if link.id != trial_link_id]
+                logger.info(f"Исключен ключ из триальной подписки (id: {trial_link_id}) при выборе для обычной подписки")
+            
+            if all_links:
+                import random
+                selected_link = random.choice(all_links)
+                new_link_id = selected_link.id
+                
+                # Помечаем ссылку как используемую и привязываем к пользователю
+                await vless_dao.update(
+                    VlessLinks.id == new_link_id,
+                    {
+                        "using": True,
+                        "user_id": self.user_id
+                    }
+                )
+                logger.info(f"Выдан новый VLESS ключ (id: {new_link_id}) пользователю {self.user_id}")
+            else:
+                logger.warning(f"Нет доступных VLESS ключей для пользователя {self.user_id}")
 
         if existing_subscription:
             old_end_date = existing_subscription.end_date
+            update_data = {
+                "start_date": existing_subscription.start_date,
+                "end_date": new_end_date if old_end_date <= current_date else old_end_date + timedelta(days=month_days),
+                "status": "active",
+            }
+            
+            # Обновляем vless_link_id только если выдали новый ключ
+            if need_new_key and new_link_id:
+                update_data["vless_link_id"] = new_link_id
+            
             update_sub = await self.sub_dao.update(
                 Subscription.user_id == self.user_id,
-                {
-                    "start_date": existing_subscription.start_date,
-                    "end_date": new_end_date if old_end_date <= current_date else old_end_date + timedelta(days=month_days),
-                    "status": "active",
-                }
+                update_data
             )
             if not update_sub:
                 logger.error(f"Юзер {self.user_id} не был обновлен в базе {self.sub_dao.model.__name__}")
@@ -146,12 +223,18 @@ class subscriber:
             )
 
         else:
-            new_subscription  = await self.sub_dao.create({
+            create_data = {
                 "user_id": self.user_id,
                 "start_date": current_date,
                 "end_date": new_end_date,
                 "status": "active",
-            })
+            }
+            
+            # Добавляем vless_link_id если выдали ключ
+            if new_link_id:
+                create_data["vless_link_id"] = new_link_id
+            
+            new_subscription = await self.sub_dao.create(create_data)
             if not new_subscription:
                 logger.error(f"Юзер {self.user_id} не был добавлен в базу {self.sub_dao.model.__name__}")
                 return

@@ -18,6 +18,7 @@ from aiogram.enums import ParseMode
 from datetime import timedelta
 from utils.work import currently_msk
 import random
+from utils.work import admin_id
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -198,7 +199,8 @@ async def gift_free_subscription(call: CallbackQuery, db_session: AsyncSession):
         return
     
     vless_dao = BaseDAO(VlessLinks, db_session)
-    all_links = await vless_dao.get_all()
+    # Получаем свободные ссылки (не используемые)
+    all_links = await vless_dao.get_all(VlessLinks.using == False)
     
     if not all_links:
         await call.message.answer(
@@ -213,13 +215,23 @@ async def gift_free_subscription(call: CallbackQuery, db_session: AsyncSession):
     current_date = currently_msk()
     trial_end_date = current_date + timedelta(days=3)
     
+    # Помечаем ссылку как используемую и привязываем к пользователю
+    await vless_dao.update(
+        VlessLinks.id == link_id,
+        {
+            "using": True,
+            "user_id": user_id
+        }
+    )
+    
     if trial_subscription:
         await trial_dao.update(
             TrialSubscription.user_id == user_id,
             {
                 "start_date": current_date,
                 "end_date": trial_end_date,
-                "trial_used": True
+                "trial_used": True,
+                "vless_link_id": link_id
             }
         )
     else:
@@ -227,16 +239,29 @@ async def gift_free_subscription(call: CallbackQuery, db_session: AsyncSession):
             "user_id": user_id,
             "start_date": current_date,
             "end_date": trial_end_date,
-            "trial_used": True
+            "trial_used": True,
+            "vless_link_id": link_id
         })
     
-    await vless_dao.delete(VlessLinks.id == link_id)
-    logger.info(f"Удалена vless ссылка с id {link_id} для пользователя {user_id}")
+    logger.info(f"VLESS ссылка с id {link_id} привязана к пользователю {user_id}")
+
+    link_to_user = f"tg://user?id={user_id}"
+    try:
+        await call.message.bot.send_message(
+            chat_id=admin_id,
+            text=f"Пользователь {markdown.hlink(str(user_id), link_to_user)} (@{username or 'без username'}) активировал пробный период на 3 дня\n\n"
+                 f"VLESS ссылка: {markdown.hcode(vless_link)}\n"
+                 f"ID ссылки: {link_id}\n"
+                 f"Активировал: {markdown.hcode(current_date)}\n"
+                 f"Истекает: {markdown.hcode(trial_end_date.strftime('%Y-%m-%d %H:%M:%S'))}"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка при отправке уведомления админу о пробном периоде: {e}")
     
     await call.message.answer(
         text=f"Твой доступ к VPN готов 🚀\n\n"
              f"Вот твоя персональная ссылка (VLESS):\n\n"
-             f"🔐 {markdown.hcode(vless_link)}\n\n"
+             f"🔑 {markdown.hcode(vless_link)}\n\n"
              f"Как подключиться:\n"
              f"1. Скопируй ссылку\n"
              f"2. Вставь её в клиент (Happ, V2RayTun, Hiddify)\n"
