@@ -42,15 +42,12 @@ services:
       - PROD_REDIS=redis://redis:6379/0
     ports:
       - "8000:8000"
-    volumes:
-      - ./alembic/versions:/app/alembic/versions
-    command: sh -c "alembic upgrade head 2>&1 || (echo 'Migration failed, resetting...' && alembic stamp base && alembic upgrade head) && python main.py"
+    command: sh -c "alembic upgrade head && python main.py"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: always
 
   celery_worker:
     build:
@@ -63,8 +60,6 @@ services:
       - DATABASE=gino
       - LOCAL_REDIS=redis://redis:6379/0
       - PROD_REDIS=redis://redis:6379/0
-    volumes:
-      - ./alembic/versions:/app/alembic/versions
     depends_on:
       db:
         condition: service_healthy
