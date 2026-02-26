@@ -13,10 +13,18 @@ from utils.work import url_db
 # access to the values within the .ini file in use.
 config = context.config
 
+# Устанавливаем script_location если не задан (фикс для Docker)
+if config.get_main_option("script_location") is None:
+    config.set_main_option("script_location", "alembic")
+
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    try:
+        fileConfig(config.config_file_name)
+    except Exception:
+        # Игнорируем ошибки логирования
+        pass
 
 # Устанавливаем URL базы данных из переменных окружения
 config.set_main_option("sqlalchemy.url", url_db)
